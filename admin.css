@@ -1,5 +1,5 @@
 /* ========================================================= */
-/* [CSS FIX] ADMIN CHAT PANEL STYLING (ฉบับแก้ไขปัญหา Scrollbar) */
+/* [CSS FIX] ADMIN CHAT PANEL STYLING (ฉบับแก้ไขปัญหา Scrollbar และ iOS Long Press) */
 /* ========================================================= */
 
 /* 0. VARIABLES & BASE STYLES */
@@ -705,8 +705,9 @@ body {
 }
 
 
-/* 5. CHAT MESSAGE STYLES (รวมการจัดกลุ่มบับเบิ้ล) (ไม่มีการแก้ไขในส่วนนี้) */
+/* ========================================================= */
 /* 5. CHAT MESSAGE STYLES (รวมการจัดกลุ่มบับเบิ้ล) */
+/* ========================================================= */
 .message-container {
     display: flex;
     margin: 0 0;
@@ -716,7 +717,7 @@ body {
     position: relative;
     transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
 
-    /* 🔑 [CRITICAL FIX] ป้องกันการเลือกข้อความ */
+    /* 🔑 [CRITICAL FIX] ป้องกันการเลือกข้อความสำหรับ Mobile/iOS */
     -webkit-user-select: none !important;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -735,7 +736,7 @@ body {
     word-wrap: break-word;
     transition: box-shadow 0.2s;
 
-    /* 🔑 [CRITICAL FIX] ป้องกันการเลือกข้อความ */
+    /* 🔑 [CRITICAL FIX] ป้องกันการเลือกข้อความสำหรับ Mobile/iOS */
     -webkit-user-select: none !important;
     -moz-user-select: none;
     -ms-user-select: none;
@@ -904,12 +905,16 @@ body {
 }
 
 
-/* 6. CONTEXT MENU STYLES (สำหรับยกเลิกข้อความ) (ไม่มีการแก้ไขในส่วนนี้) */
+/* ========================================================= */
+/* 6. CONTEXT MENU STYLES (สำหรับยกเลิกข้อความ) - FIXED FOR iOS */
+/* ========================================================= */
 
 .context-menu {
     position: absolute;
-    top: 5px;
+    top: -30px;
+    /* 🔑 [FIXED]: ปรับให้ลอยอยู่เหนือ Bubble (จากเดิม 5px) */
     z-index: 100;
+    /* 🔑 [CONFIRMED]: z-index สูงพอ */
     min-width: 150px;
     background-color: white;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -921,17 +926,20 @@ body {
     left: 0;
     right: auto;
     pointer-events: none;
+    /* ปิดไว้เมื่อยังไม่แสดง */
 }
 
 .context-menu.show {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
+    /* 🔑 [CONFIRMED]: เปิดให้คลิกได้ */
     transform: translateY(0);
 }
 
 .admin-container .context-menu {
     right: 0;
+    /* ชิดขวาของ Bubble สำหรับ Admin */
     left: auto;
 }
 

@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             event.stopPropagation();
             hideContextMenu();
 
-            if (window.confirm('ยืนยันการยกเลิกข้อความนี้? ผู้ใช้จะเห็นเป็น "ข้อความถูกยกเลิกการส่ง"')) {
+            if (window.confirm('❗ยืนยันการยกเลิกข้อความนี้? ผู้ใช้จะเห็นเป็น "ข้อความถูกยกเลิกการส่ง"')) {
                 window.deleteMessage(chatId, messageId);
             }
         };
