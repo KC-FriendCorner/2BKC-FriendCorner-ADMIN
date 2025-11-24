@@ -262,20 +262,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // สำหรับ Mobile (Touch Events)
         bubbleElement.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // เพื่อหยุดพฤติกรรมการเลือกข้อความของ iOS/Safari
-            e.stopPropagation(); // หยุดการ Propagation ก่อนเสมอ
-            startPress(e);
-        }, false);
-        bubbleElement.addEventListener('touchend', cancelPress, false);
-        bubbleElement.addEventListener('touchcancel', cancelPress, false);
-
-        // สำหรับ Desktop (Right-click/Context Menu)
-        // ใช้ event contextmenu แทนการกดค้างสำหรับ Desktop
-        bubbleElement.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            // ยกเลิก Long Press Timer ถ้ามี
-            clearTimeout(pressTimer);
-            showContextMenu(e, chatId, messageId, messageSender, bubbleElement);
+            e.stopPropagation();
+
+            // 🔑 [FIX C]: เก็บ Touch Event สำหรับใช้ใน showContextMenu 
+            // เพื่อให้ได้ตำแหน่งที่ถูกต้อง (ถ้า showContextMenu ใช้ coordinates)
+            const touchEvent = e;
+
+            pressTimer = setTimeout(() => {
+                // ใช้ Touch Event ที่เก็บไว้
+                showContextMenu(touchEvent, chatId, messageId, messageSender, bubbleElement);
+            }, LONG_PRESS_DURATION);
+
+            // ไม่ต้องเรียก startPress(e) ซ้ำ เพราะเราจัดการ Timer ตรงนี้
         }, false);
     }
 
@@ -310,6 +309,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ฟังก์ชันสำหรับแสดงเมนู (อัปเดต Signature เพื่อรับ bubbleElement)
     function showContextMenu(e, chatId, messageId, messageSender, bubbleElement) {
+        // 🔴 [FIX: L50] ซ่อนเมนูที่เปิดอยู่ก่อนถูกจัดการใน touchstart/mousedown แล้ว 
+        // ถ้าคุณได้จัดการ hideContextMenu() ใน touchstart/mousedown แล้ว ให้ข้ามไป
+        // ถ้ายังไม่ได้จัดการ ให้เปิด hideContextMenu() ไว้
+        // hideContextMenu(); 
+
         // เราจะอนุญาตให้ Admin ลบข้อความของตัวเองเท่านั้น
         if (messageSender !== 'admin' || currentListType === 'history') {
             return;
@@ -321,7 +325,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
 
         // 2. ซ่อนเมนูที่เปิดอยู่ก่อน (ถ้ามี)
-        hideContextMenu();
+        // 🔑 [แนะนำให้ลบ/คอมเมนต์ หากจัดการใน setupLongPressHandler แล้ว]
+        // hideContextMenu(); 
 
         // 3. 🔑 [FIX]: ใช้ bubbleElement เป็นตัวอ้างอิงตำแหน่ง (ถ้ามีการส่งมา)
         const referenceElement = bubbleElement || e.currentTarget.querySelector('.message-bubble');
@@ -333,14 +338,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // **เนื่องจากเราจะใช้ position: absolute บนเมนู contextMenu จะลอยไปตาม Bubble นี้**
         referenceElement.style.position = 'relative';
 
+        // 🔑 [CRITICAL FIX FOR iOS]: บังคับ display เป็น inline-block เพื่อให้ position: relative ทำงานได้ดี
+        referenceElement.style.display = 'inline-block';
+
         // 5. สร้าง Context Menu Element ใหม่
         const contextMenu = document.createElement('div');
         contextMenu.className = 'context-menu temp-context-menu';
         contextMenu.setAttribute('data-message-id', messageId);
         contextMenu.setAttribute('data-chat-id', chatId);
         contextMenu.setAttribute('data-sender', messageSender); // ค่าจะเป็น 'admin' หรือ 'user'
-        // 🔑 [NEW]: ไม่จำเป็นต้องตั้งค่า top/left/right/bottom ใน JS ถ้าใช้ CSS ที่ถูกต้อง
-        // โดยจะใช้ CSS กำหนดตำแหน่ง top: 0; left: 0; เพื่อให้ไปอยู่มุมซ้ายบนของ Bubble
 
         // 6. สร้างตัวเลือก 'ยกเลิกข้อความ'
         const deleteOption = document.createElement('div');
@@ -365,6 +371,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 8. เพิ่ม Event Listener เพื่อซ่อนเมนูเมื่อคลิกนอกพื้นที่หรือ Scroll
         const chatBox = document.getElementById('chatBox');
         if (chatBox) {
+            // ลบ Event Listener เดิมออกก่อนเพื่อป้องกันการซ้ำซ้อน
+            chatBox.removeEventListener('scroll', hideContextMenu);
             chatBox.addEventListener('scroll', hideContextMenu);
         }
 
