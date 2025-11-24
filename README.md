@@ -1,0 +1,1 @@
+# 2BKC-FriendCorner-ADMIN
