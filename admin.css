@@ -1,0 +1,1171 @@
+/* ========================================================= */
+/* [CSS FIX] ADMIN CHAT PANEL STYLING (ฉบับแก้ไขปัญหา Scrollbar) */
+/* ========================================================= */
+
+/* 0. VARIABLES & BASE STYLES */
+:root {
+    /* 🔴 [ปรับสีหลัก: สีแดงเลือดหมูสดใส] */
+    --primary-color: #A51C30;
+    --primary-hover: #8F192A;
+    --accent-color: #A51C30;
+    --accent-hover: #8F192A;
+    --history-color: #6c757d;
+    --history-light: #e9ecef;
+    --background-color: #f8f9fa;
+    --container-bg: #ffffff;
+    --text-color: #343a40;
+    --secondary-color: #6c757d;
+    --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --danger-color: #dc3545;
+    --danger-hover: #c82333;
+
+    /* 💡 Chat Bubble Colors */
+    --user-bubble-bg: #e4e6eb;
+    --admin-bubble-bg: var(--primary-color);
+    --border-radius-md: 8px;
+
+    /* 🔑 [NEW VARIABLES] สำหรับ Bubble Grouping และ Effects */
+    --border-radius-bubble: 18px;
+    /* ค่าโค้งมนสูงสุด */
+    --border-radius-group: 8px;
+    /* ค่าโค้งมนต่ำสุด/แหลม */
+    --transition-time: 0.25s;
+    /* เวลาสำหรับ Transition */
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Prompt', sans-serif, Arial;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    overflow-x: hidden;
+    /* 🔑 [FIX 1/3]: เปลี่ยน overflow-y: hidden; เป็นการจัดการใน Container ย่อย */
+    overflow-y: auto; /* อนุญาตให้ Scrollbar ของ Body/HTML ทำงานได้ถ้าจำเป็น */
+}
+
+/* 1. LAYOUT & CONTAINER (Full Viewport) */
+body {
+    display: block;
+    min-height: 100vh;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--container-bg);
+    /* 🔑 [FIX 2/3]: ลบ overflow: hidden; ออกจาก body หรือเปลี่ยนเป็น auto */
+    /* เพื่อให้ส่วน listScreenContainer มีความสูงเต็ม 100% และสามารถจัดการ scroll ภายในได้ */
+    overflow: hidden; /* คงไว้ที่ hidden เพื่อบังคับ Scroll ภายใน #chatList (ในกรณีที่หน้าจอหลักไม่มีอะไรล้น) */
+}
+
+/* 2. LOGIN & WELCOME SCREEN STYLES (ไม่มีการแก้ไขในส่วนนี้) */
+#loginScreen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 400px;
+    width: 90%;
+    padding: 40px;
+    background: var(--container-bg);
+    box-shadow: var(--shadow-soft);
+    border-radius: 12px;
+    box-sizing: border-box;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.app-title-login {
+    font-size: 32px;
+    color: var(--primary-color);
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+#logoArea,
+.welcome-logo-area {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 0px;
+    margin-bottom: 20px;
+    flex-wrap: nowrap;
+}
+
+#logoArea img,
+.welcome-logo-area img,
+#logoArea #schoolLogo,
+.welcome-logo-area #welcomeSchoolLogo {
+    height: 70px !important;
+    width: 70px !important;
+    margin: 0 8px !important;
+    object-fit: cover !important;
+    border: none !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    margin-top: 0 !important;
+}
+
+/* 🔑 [NEW/MODIFIED] Input Field ทั่วไป (สำหรับ Login/Welcome Screen) */
+.input-field,
+.text-input {
+    width: 100%;
+    /* 🔑 [CRITICAL FIX]: กำหนดความกว้างสูงสุดให้ Input Field */
+    max-width: 300px;
+    padding: 12px;
+    border: 1px solid #ced4da;
+    border-radius: var(--border-radius-group);
+    font-size: 16px;
+    margin-bottom: 15px;
+    box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all var(--transition-time);
+    font-family: 'Prompt', sans-serif, Arial;
+}
+
+.input-field:focus,
+.text-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(165, 28, 48, 0.25), 0 3px 10px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.welcome-screen-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+#welcomeHeader {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.app-title-welcome {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 10px 0 0;
+}
+
+#appTitleImage {
+    width: 320px;
+    height: auto;
+    margin-bottom: 30px;
+    transition: all var(--transition-time);
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#appTitleImageAdmin {
+    width: 320px;
+    height: auto;
+    margin-bottom: 30px;
+    transition: all var(--transition-time);
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.welcome-box {
+    max-width: 380px;
+    width: 100%;
+    padding: 30px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow-soft);
+    text-align: center;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.welcome-message {
+    color: var(--text-color);
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    width: 100%;
+}
+
+.welcome-button-group {
+    width: 100%;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* 3. BUTTONS (ไม่มีการแก้ไขในส่วนนี้) */
+.primary-button {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-radius: var(--border-radius-group);
+    transition: all var(--transition-time) ease-out;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    font-size: 16px;
+    font-weight: 500;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 🔑 [CRITICAL FIX]: บังคับปุ่ม Login (#loginScreen) ให้มีความกว้างสูงสุดเท่ากับ Input Field (300px) */
+#loginScreen .primary-button {
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    /* ต้องเป็น block เพื่อให้ max-width และ margin auto ทำงาน */
+}
+
+.primary-button:hover {
+    background: var(--primary-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.primary-button.enter-chat-btn {
+    background-color: var(--accent-color);
+    margin: 0;
+    display: block;
+}
+
+.primary-button.enter-chat-btn:hover {
+    background-color: var(--accent-hover);
+}
+
+.secondary-button {
+    background: var(--secondary-color);
+    color: white;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-radius: var(--border-radius-group);
+    transition: all var(--transition-time) ease-out;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    font-size: 16px;
+    font-weight: 500;
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+}
+
+.secondary-button:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.secondary-button.logout-full-btn {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    font-weight: 500;
+    margin: 0;
+    display: block;
+}
+
+.secondary-button.logout-full-btn:hover {
+    background: var(--danger-hover);
+}
+
+.danger-button {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    box-sizing: border-box;
+    gap: 5px;
+}
+
+.danger-button:hover {
+    background: var(--danger-hover);
+    transform: translateY(-1px);
+}
+
+
+/* 4. ADMIN PANEL & LIST PANELS */
+#adminPanelContainer {
+    width: 100vw !important;
+    height: 100vh !important;
+    box-shadow: none;
+    border-radius: 0;
+    background-color: var(--container-bg);
+    /* 🔑 [FIX 3/3]: ลบ overflow: hidden; ออกจาก container หลัก */
+    overflow: hidden; /* คงไว้ที่ hidden เพื่อบังคับให้ #listScreen จัดการพื้นที่ scroll ภายในแทน */
+    position: relative;
+    display: block;
+    padding: 0 !important;
+}
+
+#listScreenContainer {
+    display: none !important;
+}
+
+#listScreen,
+#historyScreen {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    width: 100%;
+    height: 100%; /* 🔑 [CONFIRMATION]: ยืนยันว่า Panel หลักยืดเต็มจอ */
+    overflow: hidden; /* ควบคุม Scroll ภายใน Panel ย่อย */
+    padding: 0 !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    background-color: var(--container-bg);
+    box-sizing: border-box;
+}
+
+/* 🔑 [CRITICAL FIX]: เพิ่มการกำหนดความสูงให้ Chat List Panel (ส่วนที่อยู่ระหว่าง Header และ List) */
+#chatListPanel,
+#historyListPanel {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    width: 100%;
+    /* 🔴 [NEW FIX]: ทำให้ Panel ย่อยที่บรรจุ #chatList ยืดเต็มพื้นที่ที่เหลืออยู่ของ Container แม่ (#listScreen) */
+    height: calc(100% - 50px); /* ประมาณ 100% ลบความสูงของ Header (50px โดยประมาณ) */
+    /* หรือใช้ height: 100%; หาก #listScreen ถูกกำหนดให้ใช้ flexbox ดีแล้ว */
+    /* หากใช้ flexbox ถูกต้องแล้ว ไม่จำเป็นต้องใส่ height: 100% แต่โค้ดนี้จะช่วยแก้ปัญหา fallback ได้ */
+}
+
+
+#chatScreenContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    background-color: var(--container-bg);
+    padding: 0;
+    box-sizing: border-box;
+    z-index: 20;
+}
+
+#fullChatView {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background-color: var(--container-bg);
+    border-radius: 0;
+    overflow: hidden;
+}
+
+.chat-header-bar {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    background: var(--primary-color);
+    color: white;
+    padding: 12px 15px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    gap: 10px;
+}
+
+#chatTitle {
+    font-weight: 600;
+    margin: 0;
+    flex-grow: 1;
+    text-align: left;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    font-size: 1.35rem;
+    margin-left: 0;
+}
+
+#endChatButton,
+#deleteChatButton {
+    display: none;
+}
+
+#chatButtonContainer {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    order: 2;
+}
+
+#backButton {
+    background-color: #8F192A;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background-color 0.2s;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    box-sizing: border-box;
+    order: 3;
+    margin-left: 0;
+    width: auto;
+}
+
+#backButton:hover {
+    background-color: #6c1220;
+}
+
+.chat-header,
+#chatHeader {
+    display: none !important;
+}
+
+#chatBox {
+    flex-grow: 1;
+    overflow-y: auto;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 15px;
+    position: relative;
+}
+
+.chat-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    flex-shrink: 0;
+    gap: 15px;
+}
+
+#chatListHeader,
+#historyListHeader {
+    border-bottom: none;
+    background: var(--primary-color);
+    color: white !important;
+    padding: 12px 15px;
+    flex-shrink: 0; /* 🔴 [NEW FIX]: ป้องกันไม่ให้ Header ถูกบีบอัดเมื่อ listScreen ใช้ flexbox */
+}
+
+.panel-title {
+    flex-grow: 0 !important;
+    order: -1;
+    margin-top: 0;
+    margin-bottom: 0;
+    font-weight: 600;
+    font-size: 1.35rem;
+    white-space: normal;
+}
+
+#goHomeBtn,
+#backToWelcomeBtn {
+    background-color: var(--primary-hover);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 6px 12px;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    width: auto;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: none;
+    order: 1;
+}
+
+#goHomeBtn:hover,
+#backToWelcomeBtn:hover {
+    background-color: #6c1220;
+    border-color: white;
+}
+
+#chatList,
+#historyList {
+    flex-grow: 1;
+    overflow-y: auto; /* ✅ ส่วนนี้คือตัวสร้าง Scrollbar */
+    padding: 10px;
+    box-sizing: border-box; /* 🔴 [NEW FIX]: ทำให้ padding ไม่ไปขยายขนาดเกินความสูงที่กำหนด */
+}
+
+.chat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    border-bottom: 1px solid #f8f9fa;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s, box-shadow 0.3s;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    margin-left: 0;
+    margin-right: 0;
+    position: relative;
+    line-height: 1.2;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: var(--container-bg);
+    border-left: none;
+}
+
+.chat-item:hover {
+    background: #fce4e4;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+}
+
+.chat-info-container {
+    flex-grow: 1;
+    padding-right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.chat-item p {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.chat-item strong,
+.chat-item .chat-time,
+.chat-item .chat-owner {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.chat-item strong {
+    font-size: 14px;
+}
+
+.chat-item .chat-time,
+.chat-item .chat-owner {
+    font-size: 11px;
+}
+
+.chat-item.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 8px rgba(165, 28, 48, 0.3);
+    transform: scale(1.005);
+    border-radius: 10px;
+}
+
+.chat-item.active strong,
+.chat-item.active .chat-time,
+.chat-item.active .chat-owner {
+    color: white !important;
+}
+
+.chat-item.unread {
+    background-color: #fffde7;
+    border-left: 5px solid #ffc107;
+    font-weight: 400;
+}
+
+.chat-item.unread.active {
+    background: var(--primary-color);
+    border-left: 5px solid white;
+}
+
+.unread-dot {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 10px;
+    height: 10px;
+    background-color: #dc3545;
+    border-radius: 50%;
+    z-index: 10;
+}
+
+.chat-item:not(.active) .unread-dot {
+    background-color: #ffc107;
+}
+
+.history-item {
+    background-color: var(--history-light);
+    border-left: none;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-item:hover {
+    background: #d4d8db;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+}
+
+.history-item.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 8px rgba(165, 28, 48, 0.3);
+    transform: scale(1.005);
+    border-left: 5px solid white;
+    border-radius: 10px;
+}
+
+
+/* CHAT PANEL (ขวา - Active Chat) (ไม่มีการแก้ไขในส่วนนี้) */
+.input-area {
+    display: flex;
+    padding: 15px;
+    gap: 10px;
+    margin-top: auto;
+    flex-shrink: 0;
+}
+
+#chatInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    resize: none;
+    min-height: 40px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all var(--transition-time);
+}
+
+#chatInput:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(165, 28, 48, 0.25), 0 0 8px rgba(165, 28, 48, 0.2);
+}
+
+#sendButton {
+    flex-shrink: 0;
+    background: var(--primary-color);
+    width: 100px;
+    border-radius: 8px;
+    transition: all var(--transition-time) ease-out;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    border: none;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+#sendButton:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+
+/* 5. CHAT MESSAGE STYLES (รวมการจัดกลุ่มบับเบิ้ล) (ไม่มีการแก้ไขในส่วนนี้) */
+.message-container {
+    display: flex;
+    margin: 0 0;
+    align-items: flex-end;
+    opacity: 1;
+    transform: translateY(0);
+    position: relative;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
+}
+
+.message-bubble {
+    font-size: 15px;
+    padding: 8px 12px;
+    width: fit-content;
+    border-radius: var(--border-radius-bubble);
+    max-width: 70%;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    line-height: 1.4;
+    word-wrap: break-word;
+    transition: box-shadow 0.2s;
+}
+
+.message-bubble:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+/* ---------------------------------------------------- */
+/* 🔑 [CHAT BUBBLE GROUPING] - USER (ชิดซ้าย) */
+/* ---------------------------------------------------- */
+.user-container {
+    position: relative;
+    justify-content: flex-start;
+}
+
+.user-container .message-bubble {
+    background-color: var(--user-bubble-bg);
+    color: var(--text-color);
+    border-bottom-left-radius: var(--border-radius-bubble);
+    border-top-left-radius: var(--border-radius-bubble);
+}
+
+/* 1. USER - บับเบิ้ลแรกในกลุ่ม: ตัดมุมล่างซ้ายออก */
+.user-container:has(+ .user-container) .message-bubble {
+    border-bottom-left-radius: var(--border-radius-group);
+    border-top-left-radius: var(--border-radius-bubble);
+}
+
+/* 2. USER - บับเบิ้ลกลางในกลุ่ม: ตัดมุมบนซ้ายและมุมล่างซ้ายออก */
+.user-container+.user-container:has(+ .user-container) .message-bubble {
+    border-top-left-radius: var(--border-radius-group);
+    border-bottom-left-radius: var(--border-radius-group);
+}
+
+/* 3. USER - บับเบิ้ลสุดท้ายในกลุ่ม: ตัดมุมบนซ้ายออก */
+.user-container+.user-container:not(:has(+ .user-container)) .message-bubble {
+    border-top-left-radius: var(--border-radius-group);
+    border-bottom-left-radius: var(--border-radius-bubble);
+}
+
+.user-container .message-time {
+    order: 2;
+    margin-left: 6px;
+    color: var(--secondary-color);
+}
+
+/* ---------------------------------------------------- */
+/* 🔑 [CHAT BUBBLE GROUPING] - ADMIN (ชิดขวา) */
+/* ---------------------------------------------------- */
+.admin-container {
+    justify-content: flex-end;
+    position: relative;
+}
+
+.admin-container .message-bubble {
+    background-color: var(--admin-bubble-bg);
+    color: white;
+    border-bottom-right-radius: var(--border-radius-bubble);
+    border-top-right-radius: var(--border-radius-bubble);
+    order: 2;
+}
+
+.admin-container .message-time {
+    order: 1;
+    margin-right: 6px;
+    color: var(--secondary-color);
+}
+
+/* 1. ADMIN - บับเบิ้ลแรกในกลุ่ม: ตัดมุมล่างขวาออก */
+.admin-container:has(+ .admin-container) .message-bubble {
+    border-bottom-right-radius: var(--border-radius-group);
+    border-top-right-radius: var(--border-radius-bubble);
+}
+
+/* 2. ADMIN - บับเบิ้ลกลางในกลุ่ม: ตัดมุมบนขวาและมุมล่างขวาออก */
+.admin-container+.admin-container:has(+ .admin-container) .message-bubble {
+    border-top-right-radius: var(--border-radius-group);
+    border-bottom-right-radius: var(--border-radius-group);
+}
+
+/* 3. ADMIN - บับเบิ้ลสุดท้ายในกลุ่ม: ตัดมุมบนขวาออก */
+.admin-container+.admin-container:not(:has(+ .admin-container)) .message-bubble {
+    border-top-right-radius: var(--border-radius-group);
+    border-bottom-right-radius: var(--border-radius-bubble);
+}
+
+/* ---------------------------------------------------- */
+/* --- SYSTEM MESSAGE STYLES --- */
+.system-container,
+.deleted-system-message {
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+}
+
+.system-container .message-bubble,
+.deleted-system-message .message-bubble {
+    background-color: #fff3cd;
+    color: #856404;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    max-width: 50%;
+    box-shadow: none;
+    order: 1;
+}
+
+.deleted-bubble {
+    background-color: #fce4e4 !important;
+    color: var(--danger-color) !important;
+    font-style: italic;
+    border: 1px dashed var(--danger-color);
+    max-width: 60%;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+}
+
+.deleted-bubble+.message-time {
+    display: none !important;
+}
+
+
+.message-time {
+    display: block;
+    font-size: 10px;
+    opacity: 0.8;
+    white-space: nowrap;
+    line-height: 1.2;
+    margin-top: 0;
+}
+
+.date-separator {
+    text-align: center;
+    margin: 6px 0 3px 0;
+    position: relative;
+    z-index: 1;
+    font-size: 12px;
+    color: #777;
+    font-weight: 500;
+}
+
+.date-separator::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #ccc;
+    z-index: -1;
+}
+
+.date-separator:after {
+    content: attr(data-text);
+    position: relative;
+    padding: 2px 8px;
+    background: #f0f0f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    z-index: 2;
+}
+
+
+/* 6. CONTEXT MENU STYLES (สำหรับยกเลิกข้อความ) (ไม่มีการแก้ไขในส่วนนี้) */
+
+.context-menu {
+    position: absolute;
+    top: 5px;
+    z-index: 10;
+    min-width: 150px;
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    left: 0;
+    right: auto;
+    pointer-events: none;
+}
+
+.context-menu.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.admin-container .context-menu {
+    right: 0;
+    left: auto;
+}
+
+.context-menu-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: var(--text-color);
+    transition: background-color 0.2s, color 0.2s, border-radius 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.context-menu-item:hover {
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    margin: 0 5px;
+}
+
+.context-menu-item:first-child:hover {
+    border-radius: 5px 5px 0 0;
+}
+
+.context-menu-item:last-child:hover {
+    border-radius: 0 0 5px 5px;
+}
+
+.context-menu-item:first-child:last-child:hover {
+    border-radius: 5px;
+}
+
+
+.context-menu-item.delete {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+.context-menu-item.delete:hover {
+    background-color: var(--danger-color);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+    border-radius: 0 0 9px 9px;
+    margin: 0;
+    padding: 10px 15px;
+}
+
+.context-menu-item.delete:first-child:last-child:hover {
+    border-radius: 9px;
+}
+
+.context-menu-item i {
+    font-size: 16px;
+    transition: color 0.2s;
+}
+
+.context-menu-item.delete:hover i {
+    color: white;
+}
+
+@keyframes fadeInAdminBubble {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* 7. MEDIA QUERIES (บังคับ Full Screen 100% ตลอดเวลา) */
+
+@media (max-width: 900px) {
+
+    #listScreenContainer {
+        padding: 0 !important;
+        flex-direction: column;
+        display: none;
+    }
+
+    #listScreen,
+    #historyScreen {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        width: 100%;
+        height: 100%; /* 🔴 [NEW FIX]: ยืนยันความสูงเต็มจอในโหมด Mobile */
+        overflow: hidden;
+        padding: 0 !important;
+    }
+
+    #chatListPanel,
+    #historyListPanel {
+        display: flex;
+        flex-grow: 1;
+        flex-direction: column;
+        width: 100%;
+        /* 🔴 [NEW FIX]: ทำให้ Panel ย่อยยืดเต็มที่ */
+        height: 100%;
+    }
+
+
+    #chatScreenContainer {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+    }
+
+    #backButton {
+        display: flex !important;
+    }
+
+    #chatBox {
+        margin: 10px;
+    }
+
+    .input-area {
+        padding: 10px;
+    }
+
+    .chat-header-bar {
+        padding: 10px 10px;
+    }
+
+    .chat-header-bar #chatTitle {
+        order: 1;
+        flex-grow: 1;
+    }
+
+    .chat-header-bar #chatButtonContainer {
+        order: 2;
+    }
+
+    .chat-header-bar #backButton {
+        order: 3;
+    }
+}
+
+@media (min-width: 901px) {
+
+    #adminPanelContainer {
+        display: block;
+        max-width: 100vw;
+        margin: 0 !important;
+        box-shadow: none;
+        border-radius: 0;
+        height: 100vh;
+        position: relative;
+        width: 100vw;
+    }
+
+    #listScreenContainer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        flex-direction: column;
+        flex-basis: auto;
+        min-width: auto;
+        flex-shrink: 1;
+        background-color: var(--container-bg);
+        border-right: none;
+        padding: 0 !important;
+    }
+
+    #listScreen,
+    #historyScreen {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        padding: 0 !important;
+    }
+    
+    #chatListPanel,
+    #historyListPanel {
+        display: flex;
+        flex-grow: 1;
+        flex-direction: column;
+        width: 100%;
+        /* 🔴 [NEW FIX]: ทำให้ Panel ย่อยยืดเต็มที่ */
+        height: 100%;
+    }
+
+    #chatScreenContainer {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: none;
+        z-index: 30;
+    }
+
+    #backButton {
+        display: flex !important;
+    }
+
+    .message-bubble {
+        font-size: 15px;
+    }
+}
+
+
+/* ---------------------------------------------------- */
+/* DELETE HISTORY BUTTON STYLES (ไม่มีการแก้ไขในส่วนนี้) */
+/* ---------------------------------------------------- */
+.delete-chat-history-btn {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    display: none;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.delete-chat-history-btn:hover {
+    background: var(--danger-hover);
+}
+
+.history-item .delete-chat-history-btn,
+.chat-item.history-item .delete-chat-history-btn {
+    display: flex !important;
+}
+
+.chat-item:not(.history-item) .delete-chat-history-btn,
+#chatList .delete-chat-history-btn {
+    display: none !important;
+}
+
+/* --- Scrollbar Hiding --- */
+#mainContainer::-webkit-scrollbar,
+#chatBox::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+#mainContainer,
+#chatBox {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
