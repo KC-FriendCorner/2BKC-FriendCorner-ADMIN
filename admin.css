@@ -706,6 +706,7 @@ body {
 
 
 /* 5. CHAT MESSAGE STYLES (รวมการจัดกลุ่มบับเบิ้ล) (ไม่มีการแก้ไขในส่วนนี้) */
+/* 5. CHAT MESSAGE STYLES (รวมการจัดกลุ่มบับเบิ้ล) */
 .message-container {
     display: flex;
     margin: 0 0;
@@ -714,6 +715,12 @@ body {
     transform: translateY(0);
     position: relative;
     transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
+
+    /* 🔑 [CRITICAL FIX] ป้องกันการเลือกข้อความ */
+    -webkit-user-select: none !important;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .message-bubble {
@@ -727,6 +734,12 @@ body {
     line-height: 1.4;
     word-wrap: break-word;
     transition: box-shadow 0.2s;
+
+    /* 🔑 [CRITICAL FIX] ป้องกันการเลือกข้อความ */
+    -webkit-user-select: none !important;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .message-bubble:hover {
@@ -1178,18 +1191,4 @@ body {
 #chatBox {
     -ms-overflow-style: none;
     scrollbar-width: none;
-}
-
-/* ========================================================= */
-/* 8. 🔑 [CRITICAL FIX]: ป้องกันการเลือกข้อความบน iOS/Mobile */
-/* ========================================================= */
-.message-container,
-.message-bubble {
-    /* 🔴 ป้องกันการเลือกข้อความใน Safari/iOS (สำคัญมาก) */
-    -webkit-user-select: none !important;
-
-    /* ป้องกันการเลือกข้อความสำหรับเบราว์เซอร์อื่น ๆ */
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
 }
