@@ -262,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // สำหรับ Mobile (Touch Events)
         bubbleElement.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // เพื่อหยุดพฤติกรรมการเลือกข้อความของ iOS/Safari
             e.stopPropagation(); // หยุดการ Propagation ก่อนเสมอ
             startPress(e);
         }, false);
