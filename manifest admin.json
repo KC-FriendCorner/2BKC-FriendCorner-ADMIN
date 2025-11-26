@@ -1,15 +1,20 @@
 {
+  "name": "2BKC Baojai Admin",
+  "short_name": "Baojai Admin",
+  "start_url": "/admin.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
+      "src": "/adminปก.png",  
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/apple-touch-icon-180x180.png",
-      "sizes": "180x180",
+      "src": "/adminปก.png", 
+      "sizes": "512x512",
       "type": "image/png"
     }
-  ],
-  "name": "2BKC Baojai Zone Admin"
+  ]
 }
