@@ -672,7 +672,7 @@ body {
     flex-grow: 1;
     padding: 10px;
     border: 1px solid #ced4da;
-    border-radius: 8px;
+    border-radius: 20px;
     resize: none;
     min-height: 40px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -689,7 +689,7 @@ body {
     flex-shrink: 0;
     background: var(--primary-color);
     width: 100px;
-    border-radius: 8px;
+    border-radius: 20px;
     transition: all var(--transition-time) ease-out;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
     border: none;
