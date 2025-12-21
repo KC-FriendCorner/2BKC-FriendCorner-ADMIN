@@ -1736,77 +1736,80 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadHistoryChats = () => window.loadChatList(true);
 });
 
-const admin = require('firebase-admin');
+/**
+ * ฟังก์ชันหลักเมื่อแอดมินกดส่งข้อความในหน้าเว็บ
+ */
+function handleAdminSendMessage(recipientUid, messageText) {
+    // 1. บันทึกข้อความลง Database ปกติเพื่อให้ข้อความขึ้นในหน้าแชท
+    const chatRef = firebase.database().ref(`messages/${recipientUid}`).push();
+    chatRef.set({
+        sender: 'admin',
+        text: messageText,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+        console.log("บันทึกข้อความลงฐานข้อมูลสำเร็จ");
 
-// 1. Initial ระบบด้วยคีย์ที่คุณส่งมา
-const serviceAccount = require("../service-account-key.json");
-
-if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        databaseURL: "https://kc-tobe-friendcorner-21655-default-rtdb.asia-southeast1.firebasedatabase.app"
+        // 2. เรียกฟังก์ชันดึง Token และสั่งยิงแจ้งเตือน
+        fetchUserTokenAndNotify(recipientUid, messageText);
     });
 }
 
-const db = admin.database();
-
 /**
- * ฟังก์ชันสำหรับแอดมินส่งข้อความพร้อมแจ้งเตือน
- * @param {string} recipientUid - ID ของผู้ใช้ที่แอดมินกำลังตอบแชท
- * @param {string} messageText - ข้อความที่แอดมินพิมพ์
+ * ฟังก์ชันดึง Token จาก DB และเรียก API ของ Vercel (Serverless Function)
  */
-async function adminReplyAndNotify(recipientUid, messageText) {
-    try {
-        // ขั้นตอนที่ 1: บันทึกข้อความลงในแชท (ตัวอย่างพาธ messages)
-        const messageRef = db.ref(`messages/${recipientUid}`).push();
-        await messageRef.set({
-            sender: 'admin',
-            text: messageText,
-            timestamp: admin.database.ServerValue.TIMESTAMP
-        });
+function fetchUserTokenAndNotify(userId, text) {
+    // ดึง Token จากพาธที่เก็บไว้
+    firebase.database().ref(`users/${userId}/fcmToken`).once('value')
+        .then((snapshot) => {
+            const token = snapshot.val();
 
-        // ขั้นตอนที่ 2: ดึง Token ของผู้รับจากพาธ users
-        const userSnapshot = await db.ref(`users/${recipientUid}/fcmToken`).once('value');
-        const userToken = userSnapshot.val();
-
-        if (userToken) {
-            // ขั้นตอนที่ 3: สั่งยิงแจ้งเตือน (FCM v1)
-            const payload = {
-                notification: {
-                    title: "แอดมินตอบข้อความแล้ว 💬",
-                    body: messageText
-                },
-                data: {
-                    url: "https://2bkc-baojai-zone.vercel.app/",
-                    chatId: recipientUid
-                },
-                token: userToken
-            };
-
-            const response = await admin.messaging().send(payload);
-            console.log('✅ แจ้งเตือนส่งสำเร็จ:', response);
-        } else {
-            console.log('⚠️ ไม่พบ Token ของผู้รับ (ผู้ใช้อาจไม่ได้เปิดการแจ้งเตือน)');
-        }
-    } catch (error) {
-        console.error('❌ เกิดข้อผิดพลาด:', error);
-    }
+            if (token) {
+                // ส่งข้อมูลไปยัง API ที่เราติดตั้งไว้ในโฟลเดอร์ /api/send-notify.js
+                fetch('/api/send-notify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: token,
+                        title: 'แอดมินตอบกลับแล้ว ✨',
+                        body: text
+                    })
+                })
+                    .then(res => res.json())
+                    .then(data => console.log('ส่ง Push Notification สำเร็จ:', data))
+                    .catch(err => console.error('Error calling Notification API:', err));
+            } else {
+                console.log("ผู้ใช้ไม่ได้ลงทะเบียนแจ้งเตือน (Token ไม่พบ)");
+            }
+        })
+        .catch(err => console.error('Error fetching token:', err));
 }
 
-// ตัวอย่างการเรียกใช้: adminReplyAndNotify("ID_ของ_User", "สวัสดีครับ มีอะไรให้ช่วยไหมครับ?");
-
-// ในหน้า admin.js จังหวะที่ส่งข้อความสำเร็จ
-function triggerNotification(userToken, messageText) {
-    fetch('/api/send-notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            token: userToken,
-            title: 'แอดมินตอบกลับแล้ว ✨',
-            body: messageText
-        })
-    })
-        .then(res => res.json())
-        .then(data => console.log('Notification sent!', data))
-        .catch(err => console.error('Error:', err));
+/**
+ * ฟังก์ชันหลักที่แอดมินกดส่ง
+ */
+function handleAdminSendMessage(recipientUid, messageText) {
+    // 1. บันทึกข้อความลง Database (โค้ดเดิมของคุณ)
+    firebase.database().ref(`messages/${recipientUid}`).push({
+        sender: 'admin',
+        text: messageText,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+        // 2. ดึง Token และส่งแจ้งเตือน
+        firebase.database().ref(`users/${recipientUid}/fcmToken`).once('value')
+            .then((snapshot) => {
+                const token = snapshot.val();
+                if (token) {
+                    // เรียกไปที่ไฟล์ API บน Vercel
+                    fetch('/api/send-notify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            token: token,
+                            title: 'แอดมินตอบกลับแล้ว ✨',
+                            body: messageText
+                        })
+                    });
+                }
+            });
+    });
 }
