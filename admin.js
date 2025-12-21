@@ -1,3 +1,4 @@
+
 // =================================================================
 // === 🟢 admin.js - ฉบับรวมสมบูรณ์ (พร้อมแก้ไข DeletedAt Display & Long Press) ===
 // =================================================================
@@ -400,8 +401,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 1. อัปเดต node ข้อความให้มี property 'deleted: true' และลบ 'text' ออก
         messageRef.update({
-            text: null,     // ลบข้อความจริงออกจากฐานข้อมูล
-            deleted: true,  // ตั้งค่าสถานะว่าถูกลบแล้ว
+            text: null,     // ลบข้อความจริงออกจากฐานข้อมูล
+            deleted: true,  // ตั้งค่าสถานะว่าถูกลบแล้ว
             deletedAt: timestamp // บันทึกเวลาที่ลบ
         })
             .then(() => {
@@ -1458,6 +1459,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .then((userCredential) => {
                 console.log("Admin logged in successfully:", userCredential.user.uid);
                 // *** เพิ่มโค้ด redirect ไปหน้า Admin Dashboard ที่นี่ ***
+                setupPushNotifications(userCredential.user.uid, true); // Admin Login, ใช้ UID จริง    
+                // *** เพิ่มโค้ด redirect ไปหน้า Admin Dashboard ที่นี่ ***
+                window.showListScreen('active'); // หรือฟังก์ชัน Redirect อื่นๆ
             })
             .catch((error) => {
                 let message = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
@@ -1565,4 +1569,228 @@ document.addEventListener('DOMContentLoaded', () => {
             window.deleteChatPermanently(activeChatId);
         };
     }
+    // ฟังก์ชันสำหรับลงทะเบียน SW, ขออนุญาต และรับ Token
+    function setupPushNotifications(userID, is_admin = false) {
+        if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+            console.warn("Push notifications are not supported by this browser.");
+            return;
+        }
+
+        // 1. ลงทะเบียน Service Worker
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+            .then(() => {
+                const messaging = firebase.messaging();
+
+                // 2. ขออนุญาต
+                messaging.requestPermission()
+                    .then(() => messaging.getToken())
+                    .then((currentToken) => {
+                        if (currentToken) {
+                            // 3. บันทึก Token โดยแยก Path
+                            const tokenPath = is_admin ? `admin_tokens/admin_user_001` : `user_tokens/${userID}`;
+
+                            firebase.database().ref(tokenPath).set(currentToken)
+                                .then(() => console.log(`${is_admin ? 'Admin' : 'User'} Token saved:`, currentToken))
+                                .catch(error => console.error("Error saving token:", error));
+                        } else {
+                            console.log('No FCM Token available.');
+                        }
+                    })
+                    .catch((err) => {
+                        console.error('Permission or Token error:', err);
+                    });
+            })
+            .catch((error) => console.error("Service Worker registration failed:", error));
+    }
+
+
+    // *** วิธีเรียกใช้ในแต่ละฝั่ง ***
+
+    // ใน admin.js: เรียกใช้เมื่อ Admin ล็อกอินสำเร็จ
+    // setupPushNotifications('admin_user_001', true); 
+
+    // ใน user.js: เรียกใช้เมื่อ User ID ถูกกำหนด
+    // setupPushNotifications(currentUserID, false);
+    // =================================================================
+    // === 12. CHAT LIST LOADING & RENDERING (admin.js) ===
+    // =================================================================
+
+    const CHATS_PATH = 'chats'; // 🚩 ต้องมีตัวแปรนี้ใน Global Scope ของ admin.js
+    const CHAT_LIST_ELEMENT_ID = 'chatListContainer'; // 🚩 ต้องมี Element นี้ใน admin.html
+
+    /**
+     * โหลดและแสดงรายการแชทที่ใช้งานอยู่ (Active) หรือแชทประวัติ (History)
+     * @param {boolean} isReload - True หากเป็นการโหลดซ้ำ
+     */
+    window.loadChatList = function (isReload) {
+        if (!window.database || !window.auth.currentUser) return;
+
+        // ยกเลิก Listener เดิมทั้งหมดก่อนโหลดใหม่
+        if (isReload) {
+            window.cancelAllListeners();
+        }
+
+        const listContainer = document.getElementById(CHAT_LIST_ELEMENT_ID);
+        listContainer.innerHTML = ''; // ล้างรายการเก่า
+
+        // ตั้งค่า Query ตามโหมดที่กำลังทำงานอยู่ (Active หรือ History)
+        let chatRef = database.ref(CHATS_PATH);
+        let query;
+
+        if (currentListType === 'active') {
+            // 🟢 ACTIVE CHATS: โหลดแชทที่มีสถานะ active = true
+            query = chatRef.orderByChild('metadata/active').equalTo(true);
+        } else {
+            // 📂 HISTORY CHATS: โหลดแชทที่มีสถานะ active = false
+            query = chatRef.orderByChild('metadata/active').equalTo(false);
+        }
+
+        const onChatChildAdded = (snapshot) => {
+            const chatId = snapshot.key;
+            const chatData = snapshot.val();
+
+            // กรองตัวเองออกจากรายการ (ถ้ามี)
+            if (chatId === 'ADMIN_DUMMY_CHAT') return;
+
+            window.renderChatListItem(chatId, chatData, listContainer);
+        };
+
+        const onChatChildChanged = (snapshot) => {
+            const chatId = snapshot.key;
+            const chatData = snapshot.val();
+
+            // 1. ถ้าสถานะเปลี่ยนจาก Active -> History (หรือกลับกัน) 
+            // ให้ลบรายการเดิม และเพิ่มรายการใหม่ (ถ้าตรงกับโหมดปัจจุบัน)
+            const itemToRemove = document.getElementById(`chat-item-${chatId}`);
+            if (itemToRemove) {
+                itemToRemove.remove();
+            }
+
+            // 2. ตรวจสอบว่าควรแสดงรายการนี้หรือไม่
+            if (chatData.metadata && chatData.metadata.active === (currentListType === 'active')) {
+                window.renderChatListItem(chatId, chatData, listContainer);
+            }
+
+            // 3. ถ้าเป็นแชทที่กำลังเปิดอยู่ ให้ Update UI
+            if (window.activeChatId === chatId) {
+                window.updateChatHeader(chatData); // คุณต้องสร้างฟังก์ชันนี้เอง
+            }
+        };
+
+        const onChatChildRemoved = (snapshot) => {
+            const chatId = snapshot.key;
+            const itemToRemove = document.getElementById(`chat-item-${chatId}`);
+            if (itemToRemove) {
+                itemToRemove.remove();
+            }
+        }
+
+        // ติดตั้ง Listeners และบันทึกไว้ใน Global
+        query.on('child_added', onChatChildAdded);
+        query.on('child_changed', onChatChildChanged);
+        query.on('child_removed', onChatChildRemoved);
+
+        // บันทึก Listener ไว้ใน Global สำหรับการยกเลิกภายหลัง
+        chatListeners.chatList = {
+            callback: onChatChildAdded, // ใช้ callback เดียวกันสำหรับการอ้างอิง
+            query: query
+        };
+
+        listContainer.textContent = listContainer.children.length > 0 ? '' : 'ไม่มีรายการแชทในโหมดนี้';
+    };
+
+
+    /**
+     * สร้างและแสดงผล Chat Item ในรายการ
+     * @param {string} chatId - ID ของแชท
+     * @param {object} chatData - ข้อมูลทั้งหมดของแชท
+     * @param {HTMLElement} listContainer - Element แม่ที่จะใส่ Chat Item
+     */
+    window.renderChatListItem = function (chatId, chatData, listContainer) {
+        const item = document.createElement('div');
+        item.className = 'chat-item';
+        item.id = `chat-item-${chatId}`;
+        item.onclick = () => window.openChat(chatId, chatData); // 🚩 ต้องมี openChat()
+
+        // ดึงข้อมูลเมตาเพื่อแสดง
+        const metadata = chatData.metadata || {};
+        const lastMessage = metadata.lastMessageText || 'ไม่มีข้อความล่าสุด';
+        const lastTime = metadata.lastMessageTime ? window.formatTime(metadata.lastMessageTime) : 'N/A';
+
+        // สร้าง HTML สำหรับรายการแชท
+        item.innerHTML = `
+        <div class="chat-info">
+            <div class="chat-id">#${chatId.substring(0, 8)}...</div>
+            <div class="chat-time">${lastTime}</div>
+        </div>
+        <div class="chat-preview">${lastMessage}</div>
+        <div class="chat-status">${metadata.unreadByAdmin ? '🔔' : '✔️'}</div>
+    `;
+
+        // ใส่รายการใหม่ไว้ด้านบนเสมอ (เพื่อให้ข้อความใหม่ล่าสุดอยู่บนสุด)
+        listContainer.prepend(item);
+    }
+
+    // 🚩 เรียกใช้ฟังก์ชันหลักเมื่อต้องการเปลี่ยนหน้าจอ
+    window.loadActiveChats = () => window.loadChatList(true);
+    window.loadHistoryChats = () => window.loadChatList(true);
 });
+
+const admin = require('firebase-admin');
+
+// 1. Initial ระบบด้วยคีย์ที่คุณส่งมา
+const serviceAccount = require("./service-account-key.json");
+
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        databaseURL: "https://kc-tobe-friendcorner-21655-default-rtdb.asia-southeast1.firebasedatabase.app"
+    });
+}
+
+const db = admin.database();
+
+/**
+ * ฟังก์ชันสำหรับแอดมินส่งข้อความพร้อมแจ้งเตือน
+ * @param {string} recipientUid - ID ของผู้ใช้ที่แอดมินกำลังตอบแชท
+ * @param {string} messageText - ข้อความที่แอดมินพิมพ์
+ */
+async function adminReplyAndNotify(recipientUid, messageText) {
+    try {
+        // ขั้นตอนที่ 1: บันทึกข้อความลงในแชท (ตัวอย่างพาธ messages)
+        const messageRef = db.ref(`messages/${recipientUid}`).push();
+        await messageRef.set({
+            sender: 'admin',
+            text: messageText,
+            timestamp: admin.database.ServerValue.TIMESTAMP
+        });
+
+        // ขั้นตอนที่ 2: ดึง Token ของผู้รับจากพาธ users
+        const userSnapshot = await db.ref(`users/${recipientUid}/fcmToken`).once('value');
+        const userToken = userSnapshot.val();
+
+        if (userToken) {
+            // ขั้นตอนที่ 3: สั่งยิงแจ้งเตือน (FCM v1)
+            const payload = {
+                notification: {
+                    title: "แอดมินตอบข้อความแล้ว 💬",
+                    body: messageText
+                },
+                data: {
+                    url: "https://2bkc-baojai-zone.vercel.app/",
+                    chatId: recipientUid
+                },
+                token: userToken
+            };
+
+            const response = await admin.messaging().send(payload);
+            console.log('✅ แจ้งเตือนส่งสำเร็จ:', response);
+        } else {
+            console.log('⚠️ ไม่พบ Token ของผู้รับ (ผู้ใช้อาจไม่ได้เปิดการแจ้งเตือน)');
+        }
+    } catch (error) {
+        console.error('❌ เกิดข้อผิดพลาด:', error);
+    }
+}
+
+// ตัวอย่างการเรียกใช้: adminReplyAndNotify("ID_ของ_User", "สวัสดีครับ มีอะไรให้ช่วยไหมครับ?");
