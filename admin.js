@@ -115,22 +115,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-            // ใช้ fetch API ในการส่งข้อมูลไปยัง LINE API
-            const response = await fetch(apiEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${LINE_ACCESS_TOKEN}`,
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (response.ok) {
-                console.log("LINE notification sent successfully.");
-            } else {
-                // ดึง Error จาก LINE API
-                const errorData = await response.json();
-                console.error("Failed to send LINE notification:", response.status, errorData);
+            // แทนที่ฟังก์ชันเดิมที่ error
+            function sendNotification(token, message) {
+                fetch('/api/send-notify', { // เรียกมาที่ Serverless Function ของเรา
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: token,
+                        title: 'แอดมินตอบกลับแล้ว ✨',
+                        body: message
+                    })
+                })
+                    .then(res => res.json())
+                    .then(data => console.log('สำเร็จ:', data))
+                    .catch(err => console.error('Error:', err));
             }
         } catch (error) {
             console.error("Error connecting to LINE API:", error);
@@ -1736,80 +1734,64 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadHistoryChats = () => window.loadChatList(true);
 });
 
-/**
- * ฟังก์ชันหลักเมื่อแอดมินกดส่งข้อความในหน้าเว็บ
- */
+// admin.js
+
 function handleAdminSendMessage(recipientUid, messageText) {
-    // 1. บันทึกข้อความลง Database ปกติเพื่อให้ข้อความขึ้นในหน้าแชท
+    if (!recipientUid || !messageText) {
+        console.error("UID หรือข้อความว่างเปล่า!");
+        return;
+    }
+
+    // 1. บันทึกข้อความลง Database
     const chatRef = firebase.database().ref(`messages/${recipientUid}`).push();
     chatRef.set({
         sender: 'admin',
         text: messageText,
         timestamp: firebase.database.ServerValue.TIMESTAMP
     }).then(() => {
-        console.log("บันทึกข้อความลงฐานข้อมูลสำเร็จ");
+        console.log("บันทึกแชทสำเร็จ เริ่มดึง Token...");
 
-        // 2. เรียกฟังก์ชันดึง Token และสั่งยิงแจ้งเตือน
-        fetchUserTokenAndNotify(recipientUid, messageText);
-    });
+        // 2. ดึง Token ของผู้ใช้คนนี้
+        return firebase.database().ref(`users/${recipientUid}/fcmToken`).once('value');
+    }).then((snapshot) => {
+        const token = snapshot.val();
+
+        if (token) {
+            console.log("พบ Token กำลังส่งไป Vercel API...");
+            // 3. ส่งไปที่ API บน Vercel
+            return fetch('/api/send-notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: token,
+                    title: 'แอดมินตอบกลับแล้ว ✨',
+                    body: messageText
+                })
+            });
+        } else {
+            throw new Error("ผู้ใช้คนนี้ไม่มี fcmToken ในฐานข้อมูล");
+        }
+    })
+        .then(res => res.json())
+        .then(data => console.log('แจ้งเตือนส่งสำเร็จ:', data))
+        .catch(err => console.error('เกิดข้อผิดพลาด:', err.message));
 }
 
-/**
- * ฟังก์ชันดึง Token จาก DB และเรียก API ของ Vercel (Serverless Function)
- */
 function fetchUserTokenAndNotify(userId, text) {
-    // ดึง Token จากพาธที่เก็บไว้
+    console.log("กำลังดึง Token สำหรับ UID:", userId); // ตรวจสอบว่า UID ถูกต้องไหม
+
     firebase.database().ref(`users/${userId}/fcmToken`).once('value')
         .then((snapshot) => {
             const token = snapshot.val();
+            console.log("Token ที่ดึงมาได้:", token); // ถ้าขึ้น null แสดงว่าใน DB ไม่มีค่านี้
 
             if (token) {
-                // ส่งข้อมูลไปยัง API ที่เราติดตั้งไว้ในโฟลเดอร์ /api/send-notify.js
-                fetch('/api/send-notify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        token: token,
-                        title: 'แอดมินตอบกลับแล้ว ✨',
-                        body: text
-                    })
-                })
-                    .then(res => res.json())
-                    .then(data => console.log('ส่ง Push Notification สำเร็จ:', data))
-                    .catch(err => console.error('Error calling Notification API:', err));
+                // ... โค้ดส่ง fetch ไปหา Vercel API ...
             } else {
-                console.log("ผู้ใช้ไม่ได้ลงทะเบียนแจ้งเตือน (Token ไม่พบ)");
+                console.warn("ไม่พบ Token ใน Database สำหรับผู้ใช้นี้");
             }
         })
-        .catch(err => console.error('Error fetching token:', err));
-}
-
-/**
- * ฟังก์ชันหลักที่แอดมินกดส่ง
- */
-function handleAdminSendMessage(recipientUid, messageText) {
-    // 1. บันทึกข้อความลง Database (โค้ดเดิมของคุณ)
-    firebase.database().ref(`messages/${recipientUid}`).push({
-        sender: 'admin',
-        text: messageText,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => {
-        // 2. ดึง Token และส่งแจ้งเตือน
-        firebase.database().ref(`users/${recipientUid}/fcmToken`).once('value')
-            .then((snapshot) => {
-                const token = snapshot.val();
-                if (token) {
-                    // เรียกไปที่ไฟล์ API บน Vercel
-                    fetch('/api/send-notify', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            token: token,
-                            title: 'แอดมินตอบกลับแล้ว ✨',
-                            body: messageText
-                        })
-                    });
-                }
-            });
-    });
+        .catch(err => {
+            console.error("ดึง Token ล้มเหลว (อาจติด Permission Denied):", err);
+        });
 }
