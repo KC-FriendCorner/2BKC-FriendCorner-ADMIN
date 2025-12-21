@@ -1,5 +1,25 @@
 {
+  "name": "functions",
+  "description": "Cloud Functions for Firebase (Live Chat Admin System)",
+  "scripts": {
+    "lint": "eslint .",
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy-functions": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
   "dependencies": {
-    "firebase-admin": "^13.6.0"
-  }
+    "firebase-admin": "^11.5.0", 
+    "firebase-functions": "^4.2.0" 
+  },
+  "devDependencies": {
+    "eslint": "^8.28.0",
+    "eslint-config-google": "^0.14.0",
+    "firebase-functions-test": "^3.0.0"
+  },
+  "private": true
 }
