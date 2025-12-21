@@ -1739,7 +1739,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const admin = require('firebase-admin');
 
 // 1. Initial ระบบด้วยคีย์ที่คุณส่งมา
-const serviceAccount = require("./service-account-key.json");
+const serviceAccount = require("../service-account-key.json");
 
 if (!admin.apps.length) {
     admin.initializeApp({
@@ -1794,3 +1794,19 @@ async function adminReplyAndNotify(recipientUid, messageText) {
 }
 
 // ตัวอย่างการเรียกใช้: adminReplyAndNotify("ID_ของ_User", "สวัสดีครับ มีอะไรให้ช่วยไหมครับ?");
+
+// ในหน้า admin.js จังหวะที่ส่งข้อความสำเร็จ
+function triggerNotification(userToken, messageText) {
+    fetch('/api/send-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: userToken,
+            title: 'แอดมินตอบกลับแล้ว ✨',
+            body: messageText
+        })
+    })
+        .then(res => res.json())
+        .then(data => console.log('Notification sent!', data))
+        .catch(err => console.error('Error:', err));
+}
