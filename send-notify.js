@@ -1,7 +1,6 @@
-// api/send-notify.js
 const admin = require('firebase-admin');
 
-// 🚩 นำข้อมูลจาก JSON ที่คุณส่งมาใส่ในรูปแบบ Object
+// 🚩 ตรวจสอบให้แน่ใจว่าได้ใส่ private_key ตัวเต็มที่มีเครื่องหมาย \n ครบถ้วน
 const serviceAccount = {
     "type": "service_account",
     "project_id": "kc-tobe-friendcorner-21655",
@@ -22,20 +21,53 @@ if (!admin.apps.length) {
 }
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
+    // 🟢 1. จัดการเรื่อง CORS (อนุญาตให้ Browser ยิงข้าม Domain ได้)
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*'); // ในอนาคตควรระบุเฉพาะ URL ของคุณเพื่อความปลอดภัย
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    );
+
+    // 🟢 2. ตอบกลับ Preflight Request (OPTIONS) ทันที
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
+    // 🟢 3. ตรวจสอบ Method ต้องเป็น POST เท่านั้น
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
 
     const { token, title, body } = req.body;
+
+    // ตรวจสอบว่ามีข้อมูลส่งมาครบไหม
+    if (!token || !title || !body) {
+        return res.status(400).json({ error: 'Missing token, title, or body' });
+    }
 
     try {
         const message = {
             notification: { title, body },
             token: token,
-            data: { url: "https://2bkc-baojai-zone.vercel.app/" }
+            data: { 
+                url: "https://2bkc-baojai-zone.vercel.app/",
+                click_action: "https://2bkc-baojai-zone.vercel.app/" // สำหรับ Android/Web
+            }
         };
 
-        await admin.messaging().send(message);
-        res.status(200).json({ success: true });
+        const response = await admin.messaging().send(message);
+        console.log('Successfully sent message:', response);
+        res.status(200).json({ success: true, messageId: response });
+
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('FCM Error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            code: error.code 
+        });
     }
 }

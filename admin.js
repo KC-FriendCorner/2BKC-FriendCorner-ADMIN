@@ -1161,8 +1161,9 @@ document.addEventListener('DOMContentLoaded', () => {
         database.ref(`${CHATS_PATH}/${activeChatId}/${MESSAGES_SUB_PATH}`).push(messageData)
             .then(() => {
                 inputEl.value = '';
-                inputEl.style.height = 'auto'; // Reset textarea height
+                inputEl.style.height = 'auto';
 
+                // อัปเดตข้อมูลห้องแชท
                 return database.ref(`${CHATS_PATH}/${activeChatId}`).update({
                     lastMessage: {
                         text: text,
@@ -1171,6 +1172,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     lastActivity: Date.now(),
                     unreadByUser: true
                 });
+            })
+            .then(() => {
+                // 🚩 [เพิ่มส่วนนี้]: เมื่ออัปเดต DB สำเร็จ ให้ส่งแจ้งเตือนทันที
+                console.log("กำลังส่งการแจ้งเตือน...");
+                // ตรวจสอบให้แน่ใจว่า activeChatId ในห้องแชทนี้ คือ UID ของผู้ใช้
+                fetchUserTokenAndNotify(activeChatId, text);
             })
             .catch((error) => {
                 console.error("Error sending message: ", error);
@@ -1780,34 +1787,28 @@ function handleAdminSendMessage(recipientUid, messageText) {
 
 // ตัวอย่างการแก้ใน admin.js จุดที่ส่งแจ้งเตือน
 function fetchUserTokenAndNotify(userId, text) {
-    // 1. ดึง Token จาก Database
+    console.log("กำลังพยายามดึง Token สำหรับ:", userId); // [เช็คที่ 1]: ID ถูกไหม?
+
     firebase.database().ref(`users/${userId}/fcmToken`).once('value')
         .then((snapshot) => {
             const token = snapshot.val();
-            
-            if (!token) {
-                console.error("ไม่พบ Token สำหรับ User นี้ในระบบ");
-                return;
-            }
+            console.log("Token ที่ดึงได้คือ:", token); // [เช็คที่ 2]: Token มีค่าไหม?
 
-            // 2. ยิงไปที่ API บน Vercel (แนะนำให้ใช้ Full URL ในช่วงทดสอบ)
-            return fetch('/api/send-notify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: token,           // Token ของ User
-                    title: 'แอดมินตอบกลับแล้ว ✨',
-                    body: text              // ข้อความแชท
-                })
-            });
+            if (token) {
+                return fetch('https://2bkc-baojai-zone.vercel.app/api/send-notify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: token,
+                        title: 'แอดมินตอบกลับแล้ว ✨',
+                        body: text
+                    })
+                });
+            } else {
+                console.error("❌ ไม่พบ Token ใน Database ภายใต้ Path: users/" + userId + "/fcmToken");
+            }
         })
         .then(res => res ? res.json() : null)
-        .then(data => {
-            if (data && data.success) {
-                console.log("✅ แจ้งเตือนส่งสำเร็จ!");
-            } else if (data) {
-                console.error("❌ API ตอบกลับว่าพลาด:", data.error);
-            }
-        })
-        .catch(err => console.error("⚠️ Error calling API:", err));
+        .then(data => console.log("ผลลัพธ์จาก API:", data))
+        .catch(err => console.error("เกิดข้อผิดพลาดในการเรียก API:", err));
 }
