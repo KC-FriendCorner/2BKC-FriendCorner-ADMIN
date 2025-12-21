@@ -1585,7 +1585,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     .then((currentToken) => {
                         if (currentToken) {
                             // 3. บันทึก Token โดยแยก Path
-                            const tokenPath = is_admin ? `admin_tokens/admin_user_001` : `user_tokens/${userID}`;
+                            // ในฟังก์ชัน setupPushNotifications แก้บรรทัดบันทึก Token:
+                            const tokenPath = is_admin ? `admin_tokens/admin_user_001` : `users/${userID}/fcmToken`;
 
                             firebase.database().ref(tokenPath).set(currentToken)
                                 .then(() => console.log(`${is_admin ? 'Admin' : 'User'} Token saved:`, currentToken))
