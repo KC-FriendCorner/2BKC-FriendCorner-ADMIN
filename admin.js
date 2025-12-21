@@ -1778,21 +1778,36 @@ function handleAdminSendMessage(recipientUid, messageText) {
         .catch(err => console.error('เกิดข้อผิดพลาด:', err.message));
 }
 
+// ตัวอย่างการแก้ใน admin.js จุดที่ส่งแจ้งเตือน
 function fetchUserTokenAndNotify(userId, text) {
-    console.log("กำลังดึง Token สำหรับ UID:", userId); // ตรวจสอบว่า UID ถูกต้องไหม
-
+    // 1. ดึง Token จาก Database
     firebase.database().ref(`users/${userId}/fcmToken`).once('value')
         .then((snapshot) => {
             const token = snapshot.val();
-            console.log("Token ที่ดึงมาได้:", token); // ถ้าขึ้น null แสดงว่าใน DB ไม่มีค่านี้
+            
+            if (!token) {
+                console.error("ไม่พบ Token สำหรับ User นี้ในระบบ");
+                return;
+            }
 
-            if (token) {
-                // ... โค้ดส่ง fetch ไปหา Vercel API ...
-            } else {
-                console.warn("ไม่พบ Token ใน Database สำหรับผู้ใช้นี้");
+            // 2. ยิงไปที่ API บน Vercel (แนะนำให้ใช้ Full URL ในช่วงทดสอบ)
+            return fetch('/api/send-notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: token,           // Token ของ User
+                    title: 'แอดมินตอบกลับแล้ว ✨',
+                    body: text              // ข้อความแชท
+                })
+            });
+        })
+        .then(res => res ? res.json() : null)
+        .then(data => {
+            if (data && data.success) {
+                console.log("✅ แจ้งเตือนส่งสำเร็จ!");
+            } else if (data) {
+                console.error("❌ API ตอบกลับว่าพลาด:", data.error);
             }
         })
-        .catch(err => {
-            console.error("ดึง Token ล้มเหลว (อาจติด Permission Denied):", err);
-        });
+        .catch(err => console.error("⚠️ Error calling API:", err));
 }
