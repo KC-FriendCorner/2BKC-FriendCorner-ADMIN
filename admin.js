@@ -1742,7 +1742,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadHistoryChats = () => window.loadChatList(true);
 });
 
-// admin.js
+//แจ้งเตือนผู้ใช้//
 
 function handleAdminSendMessage(recipientUid, messageText) {
     if (!recipientUid || !messageText) {
@@ -1795,7 +1795,7 @@ function fetchUserTokenAndNotify(userId, text) {
             console.log("Token ที่ดึงได้คือ:", token); // [เช็คที่ 2]: Token มีค่าไหม?
 
             if (token) {
-                return fetch('https://2bkc-baojai-zone.vercel.app/api/send-notify', {
+                return fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1811,4 +1811,22 @@ function fetchUserTokenAndNotify(userId, text) {
         .then(res => res ? res.json() : null)
         .then(data => console.log("ผลลัพธ์จาก API:", data))
         .catch(err => console.error("เกิดข้อผิดพลาดในการเรียก API:", err));
+}
+
+//แอดมินแจ้งเตือน//
+
+// เพิ่มโค้ดนี้ใน admin.js เพื่อบันทึก Token ของแอดมิน
+const messaging = firebase.messaging();
+
+function setupAdminNotification(adminUid) {
+    messaging.getToken({
+        vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
+    })
+        .then((currentToken) => {
+            if (currentToken) {
+                // เก็บ Token ไว้ในที่ที่ User ทุกคนสามารถเข้าถึงเพื่ออ่านไปส่งแจ้งเตือนได้
+                firebase.database().ref('admin_metadata/fcmToken').set(currentToken);
+                console.log('Admin Token updated');
+            }
+        });
 }
