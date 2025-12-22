@@ -1818,26 +1818,31 @@ const messaging = firebase.messaging();
 
 // 2. ฟังก์ชันหลักสำหรับขอสิทธิ์และอัปเดต Token ของ Admin
 function setupAdminNotification(adminUid) {
-    if (!adminUid) return;
+    console.log("🚀 เริ่มต้นระบบแจ้งเตือนแอดมินสำหรับ UID:", adminUid);
 
-    // ขออนุญาตแจ้งเตือนจากเบราว์เซอร์
     Notification.requestPermission().then((permission) => {
+        console.log("สถานะสิทธิ์แจ้งเตือน:", permission);
+
         if (permission === 'granted') {
-            // ดึง Token ปัจจุบัน
             messaging.getToken({
                 vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
             })
                 .then((currentToken) => {
                     if (currentToken) {
-                        // บันทึก Token ลงพาธ admin_metadata เพื่อให้ User ดึงไปใช้ส่ง API ได้
+                        console.log("✅ ดึง Token แอดมินสำเร็จ:", currentToken);
+                        // บันทึกลง Database
                         firebase.database().ref('admin_metadata/fcmToken').set(currentToken)
-                            .then(() => console.log('✅ Admin Token อัปเดตเข้าระบบแล้ว'))
-                            .catch(err => console.error('❌ บันทึก Token ล้มเหลว:', err));
+                            .then(() => console.log('💾 บันทึก Token ลง Firebase สำเร็จ!'))
+                            .catch(err => console.error('❌ บันทึกล้มเหลว:', err));
+                    } else {
+                        console.warn("❓ ไม่ได้รับ Token (อาจต้องเช็ค VAPID Key)");
                     }
                 })
-                .catch((err) => console.error('❌ ดึง Token ผิดพลาด:', err));
+                .catch((err) => {
+                    console.error('❌ เกิดข้อผิดพลาดตอนดึง Token:', err);
+                });
         } else {
-            console.warn('⚠️ แอดมินปฏิเสธการรับแจ้งเตือน');
+            alert("กรุณาอนุญาตการแจ้งเตือน เพื่อให้ระบบแอดมินทำงานได้สมบูรณ์");
         }
     });
 }
