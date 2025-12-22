@@ -30,8 +30,9 @@ messaging.onBackgroundMessage((payload) => {
 // จัดการเมื่อผู้ใช้คลิกที่แจ้งเตือน
 self.addEventListener('notificationclick', function (event) {
     event.notification.close();
-    const urlToOpen = event.notification.data?.url || 'https://2bkc-baojai-zone.vercel.app/';
+    const urlToOpen = event.notification.data?.url || 'https://2bkc-baojai-zone-admin.vercel.app/';
     event.waitUntil(
         clients.openWindow(urlToOpen)
     );
+
 });
