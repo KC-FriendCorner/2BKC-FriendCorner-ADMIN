@@ -1984,8 +1984,8 @@ async function setupNotifications(userUid) {
             // สร้าง Device ID แบบสุ่มหรือดึงจาก UserAgent เพื่อแยกแต่ละเครื่อง
             const deviceId = btoa(navigator.userAgent).substring(0, 16).replace(/[/+=]/g, '');
 
-            // บันทึกไปที่ path ใหม่: admin_tokens/UID/DeviceID
-            await firebase.database().ref(`admin_tokens/${userUid}/${deviceId}`).set(token);
+            // บันทึกไปที่ path ใหม่: admin_metadata/UID/DeviceID
+            await firebase.database().ref(`admin_metadata/${userUid}/${deviceId}`).set(token);
             console.log("✅ บันทึก Token สำหรับเครื่องนี้เรียบร้อย");
         }
     } catch (err) {
