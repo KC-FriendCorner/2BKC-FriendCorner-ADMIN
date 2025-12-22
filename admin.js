@@ -1973,30 +1973,23 @@ async function setupAdminNotification(adminUid) {
     }
 }
 
-// เพิ่มไว้ในไฟล์ admin.js ส่วนที่ใช้ขอ Token
 async function setupNotifications(userUid) {
-    if ('serviceWorker' in navigator) {
-        try {
-            // ลงทะเบียนโดยระบุสโคปที่ชัดเจน
-            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-                scope: '/'
-            });
-            console.log('✅ Service Worker registered');
+    const messaging = firebase.messaging();
+    try {
+        const token = await messaging.getToken({
+            vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
+        });
 
-            const messaging = firebase.messaging();
-            const token = await messaging.getToken({
-                vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0',
-                serviceWorkerRegistration: registration
-            });
+        if (token) {
+            // สร้าง Device ID แบบสุ่มหรือดึงจาก UserAgent เพื่อแยกแต่ละเครื่อง
+            const deviceId = btoa(navigator.userAgent).substring(0, 16).replace(/[/+=]/g, '');
 
-            if (token) {
-                const deviceId = btoa(navigator.userAgent).substring(0, 12);
-                await firebase.database().ref(`admin_metadata/${userUid}/${deviceId}`).set(token);
-                console.log('✅ Admin Token Updated');
-            }
-        } catch (err) {
-            console.error('❌ Notification Setup Error:', err);
+            // บันทึกไปที่ path ใหม่: admin_tokens/UID/DeviceID
+            await firebase.database().ref(`admin_tokens/${userUid}/${deviceId}`).set(token);
+            console.log("✅ บันทึก Token สำหรับเครื่องนี้เรียบร้อย");
         }
+    } catch (err) {
+        console.error("❌ เกิดข้อผิดพลาดในการดึง Token:", err);
     }
 }
 
