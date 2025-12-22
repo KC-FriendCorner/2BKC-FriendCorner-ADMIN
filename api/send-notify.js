@@ -51,6 +51,24 @@ module.exports = async (req, res) => {
                     clickAction: 'https://2bkc-baojai-zone.vercel.app/'
                 }
             },
+            // เพิ่มส่วนนี้สำหรับ iOS โดยเฉพาะ
+            apns: {
+                payload: {
+                    aps: {
+                        alert: {
+                            title: title,
+                            body: body,
+                        },
+                        sound: 'default',
+                        badge: 1, // แสดงตัวเลขสีแดงบนไอคอนแอป
+                        'mutable-content': 1, // จำเป็นสำหรับการแสดงรูปภาพบน iOS
+                        'content-available': 1
+                    }
+                },
+                fcm_options: {
+                    image: image || 'https://2bkc-baojai-zone.vercel.app/KCปก1.png'
+                }
+            },
             webpush: {
                 headers: { Urgency: 'high' },
                 notification: {
