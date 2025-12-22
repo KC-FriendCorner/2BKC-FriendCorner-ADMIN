@@ -1874,3 +1874,42 @@ firebase.auth().onAuthStateChanged((user) => {
         });
     }
 });
+
+// ตรวจสอบว่า Firebase ถูกสร้างขึ้นหรือยังเพื่อแก้ Error "No Firebase App [DEFAULT]"
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
+// ฟังก์ชันดึงและบันทึก Token ของ Admin
+function setupAdminNotification(adminUid) {
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            messaging.getToken({
+                vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
+            })
+                .then((token) => {
+                    if (token) {
+                        // บันทึกลง admin_metadata เพื่อให้ User ทุกคนดึงไปส่งแจ้งเตือนได้
+                        firebase.database().ref('admin_metadata/fcmToken').set(token)
+                            .then(() => console.log('✅ Admin Token Updated'));
+                    }
+                });
+        }
+    });
+}
+
+// รับแจ้งเตือนขณะแอดมินเปิดหน้าเว็บค้างไว้
+messaging.onMessage((payload) => {
+    const audio = new Audio('/admin-notify.mp3');
+    audio.play().catch(() => { });
+    alert(`📢 ${payload.notification.title}\n${payload.notification.body}`);
+});
+
+// ตรวจสอบสถานะ Admin เมื่อ Login
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        firebase.database().ref('admins/' + user.uid).once('value').then(snap => {
+            if (snap.val() === true) setupAdminNotification(user.uid);
+        });
+    }
+});
