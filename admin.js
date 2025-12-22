@@ -1991,7 +1991,7 @@ async function setupNotifications(userUid) {
 
             if (token) {
                 const deviceId = btoa(navigator.userAgent).substring(0, 12);
-                await firebase.database().ref(`admin_tokens/${userUid}/${deviceId}`).set(token);
+                await firebase.database().ref(`admin_metadata/${userUid}/${deviceId}`).set(token);
                 console.log('✅ Admin Token Updated');
             }
         } catch (err) {
