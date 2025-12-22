@@ -1,26 +1,24 @@
 const admin = require('firebase-admin');
 
 module.exports = async (req, res) => {
-    // 1. จัดการ CORS
+    // 🟢 1. จัดการ CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-    // 2. ตรวจสอบและเตรียม Private Key
-    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-    if (!privateKey) {
-        return res.status(500).json({ error: "Missing FIREBASE_PRIVATE_KEY" });
-    }
+    // 🟢 2. จัดเตรียม Private Key ให้สะอาด 100%
+    const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
 
-    // จัดการเรื่องขึ้นบรรทัดใหม่ให้ถูกต้องสำหรับ RSA Key
-    // ใช้คำสั่งนี้เพื่อเปลี่ยน \n (ตัวอักษร) ให้เป็น newline (จริง)
-    const formattedKey = privateKey.replace(/\\n/g, '\n');
+    // ขั้นตอนการทำความสะอาดกุญแจเพื่อแก้ Error Bit Supported
+    const formattedKey = rawKey
+        .replace(/^"|"$/g, '')          // ลบเครื่องหมายคำพูดครอบหัวท้าย (ถ้ามี)
+        .replace(/\\n/g, '\n')          // เปลี่ยนตัวอักษร \n ให้เป็นการขึ้นบรรทัดใหม่จริง
+        .trim();                        // ลบช่องว่างหรือบรรทัดว่างส่วนเกิน
 
-    // 3. Initialize Firebase Admin
+    // 🟢 3. Initialize Firebase Admin
     if (!admin.apps.length) {
         try {
             admin.initializeApp({
@@ -30,14 +28,14 @@ module.exports = async (req, res) => {
                     privateKey: formattedKey,
                 }),
             });
-            console.log("✅ Firebase Initialized");
+            console.log("✅ Firebase Admin Initialized");
         } catch (e) {
             console.error("❌ Init Error:", e.message);
-            return res.status(500).json({ error: "Init Error: " + e.message });
+            return res.status(500).json({ success: false, error: "Init failed: " + e.message });
         }
     }
 
-    // 4. ส่งข้อความ
+    // 🟢 4. ส่วนส่งข้อความ
     const { token, title, body } = req.body;
     if (!token || !title || !body) return res.status(400).json({ error: 'Missing data' });
 
