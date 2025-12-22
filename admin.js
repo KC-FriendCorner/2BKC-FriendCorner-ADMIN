@@ -1744,30 +1744,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
 //แจ้งเตือนผู้ใช้//
 
-function handleAdminSendMessage(recipientUid, messageText) {
-    if (!recipientUid || !messageText) {
-        console.error("UID หรือข้อความว่างเปล่า!");
-        return;
-    }
+// 1. ตรวจสอบและตั้งค่า Firebase เป็นอันดับแรก
+if (!firebase.apps.length) {
+    // ใช้ค่า Config จากไฟล์ firebase-config.js หรือประกาศตรงนี้
+    firebase.initializeApp(firebaseConfig);
+}
 
-    // 1. บันทึกข้อความลง Database
+// 2. ประกาศตัวแปร Messaging
+const messaging = firebase.messaging();
+
+/**
+ * 3. ฟังก์ชันสำหรับส่งแจ้งเตือนไปหา User (เมื่อแอดมินตอบแชท)
+ */
+function handleAdminSendMessage(recipientUid, messageText) {
+    if (!recipientUid || !messageText) return;
+
+    // บันทึกข้อความลง Database
     const chatRef = firebase.database().ref(`messages/${recipientUid}`).push();
     chatRef.set({
         sender: 'admin',
         text: messageText,
         timestamp: firebase.database.ServerValue.TIMESTAMP
     }).then(() => {
-        console.log("บันทึกแชทสำเร็จ เริ่มดึง Token...");
-
-        // 2. ดึง Token ของผู้ใช้คนนี้
+        // ดึง Token ของผู้ใช้เพื่อส่ง Notify
         return firebase.database().ref(`users/${recipientUid}/fcmToken`).once('value');
     }).then((snapshot) => {
         const token = snapshot.val();
-
         if (token) {
-            console.log("พบ Token กำลังส่งไป Vercel API...");
-            // 3. ส่งไปที่ API บน Vercel
-            return fetch('/api/send-notify', {
+            fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1775,14 +1779,12 @@ function handleAdminSendMessage(recipientUid, messageText) {
                     title: 'แอดมินตอบกลับแล้ว ✨',
                     body: messageText
                 })
-            });
-        } else {
-            throw new Error("ผู้ใช้คนนี้ไม่มี fcmToken ในฐานข้อมูล");
+            })
+                .then(res => res.json())
+                .then(data => console.log('✅ แจ้งเตือนผู้ใช้สำเร็จ:', data))
+                .catch(err => console.error('❌ แจ้งเตือนผู้ใช้ล้มเหลว:', err));
         }
-    })
-        .then(res => res.json())
-        .then(data => console.log('แจ้งเตือนส่งสำเร็จ:', data))
-        .catch(err => console.error('เกิดข้อผิดพลาด:', err.message));
+    });
 }
 
 // ตัวอย่างการแก้ใน admin.js จุดที่ส่งแจ้งเตือน
@@ -1813,62 +1815,55 @@ function fetchUserTokenAndNotify(userId, text) {
         .catch(err => console.error("เกิดข้อผิดพลาดในการเรียก API:", err));
 }
 
-// 1. ประกาศตัวแปร Messaging เพียงครั้งเดียว
-const messaging = firebase.messaging();
-
-// 2. ฟังก์ชันหลักสำหรับขอสิทธิ์และอัปเดต Token ของ Admin
+/**
+ * 4. ฟังก์ชันหลักสำหรับขอสิทธิ์และบันทึก Token ของ Admin (เพื่อให้ User ทักมาแล้วแอดมินรู้ตัว)
+ */
 function setupAdminNotification(adminUid) {
     console.log("🚀 เริ่มต้นระบบแจ้งเตือนแอดมินสำหรับ UID:", adminUid);
 
     Notification.requestPermission().then((permission) => {
-        console.log("สถานะสิทธิ์แจ้งเตือน:", permission);
-
         if (permission === 'granted') {
             messaging.getToken({
                 vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
             })
                 .then((currentToken) => {
                     if (currentToken) {
-                        console.log("✅ ดึง Token แอดมินสำเร็จ:", currentToken);
-                        // บันทึกลง Database
+                        // บันทึกลง admin_metadata เพื่อให้ User ทุกคนดึงไปใช้ส่ง Notify หาแอดมิน
                         firebase.database().ref('admin_metadata/fcmToken').set(currentToken)
-                            .then(() => console.log('💾 บันทึก Token ลง Firebase สำเร็จ!'))
-                            .catch(err => console.error('❌ บันทึกล้มเหลว:', err));
-                    } else {
-                        console.warn("❓ ไม่ได้รับ Token (อาจต้องเช็ค VAPID Key)");
+                            .then(() => console.log('✅ บันทึก Admin Token ลงระบบเรียบร้อย'))
+                            .catch(err => console.error('❌ บันทึก Token ล้มเหลว:', err));
                     }
                 })
-                .catch((err) => {
-                    console.error('❌ เกิดข้อผิดพลาดตอนดึง Token:', err);
-                });
+                .catch((err) => console.error('❌ ดึง Token ผิดพลาด:', err));
         } else {
-            alert("กรุณาอนุญาตการแจ้งเตือน เพื่อให้ระบบแอดมินทำงานได้สมบูรณ์");
+            console.warn("แอดมินปฏิเสธสิทธิ์การแจ้งเตือน");
         }
     });
 }
 
-// 3. จัดการแจ้งเตือนขณะแอดมินเปิดหน้าเว็บค้างไว้ (Foreground)
+/**
+ * 5. จัดการแจ้งเตือนขณะแอดมินเปิดหน้าเว็บค้างไว้ (Foreground Notification)
+ */
 messaging.onMessage((payload) => {
-    console.log('🔔 ได้รับข้อความใหม่ (ขณะเปิดเว็บ):', payload);
+    console.log('🔔 ข้อความเข้าขณะเปิดเว็บ:', payload);
 
-    // เล่นเสียงแจ้งเตือน
+    // เล่นเสียงแจ้งเตือน (ตรวจสอบว่าไฟล์มีอยู่จริง)
     const audio = new Audio('/admin-notify.mp3');
-    audio.play().catch(e => console.warn("ระบบเสียงถูกบล็อกโดยเบราว์เซอร์:", e));
+    audio.play().catch(e => console.warn("ไม่สามารถเล่นเสียงได้:", e));
 
-    // แสดงรายละเอียดแจ้งเตือน
+    // แสดงรายละเอียด (ใช้ Alert หรือ Toast ตามสะดวก)
     const { title, body } = payload.notification;
-
-    // หากต้องการใช้ Toast สวยๆ แทน Alert สามารถเรียกใช้ Library ของคุณที่นี่ได้
     alert(`📢 ${title}\n${body}`);
 });
 
-// 4. ตรวจสอบสถานะการ Login และความเป็นแอดมิน
+/**
+ * 6. ตรวจสอบสถานะการ Login และความเป็นแอดมิน
+ */
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
-        // ตรวจสอบจากฐานข้อมูลว่า UID นี้คือแอดมินใช่หรือไม่
         firebase.database().ref('admins/' + user.uid).once('value').then(snap => {
             if (snap.val() === true) {
-                console.log("Welcome Admin:", user.email);
+                console.log("ยินดีต้อนรับแอดมิน:", user.email);
                 setupAdminNotification(user.uid);
             }
         });
@@ -1880,36 +1875,9 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// ฟังก์ชันดึงและบันทึก Token ของ Admin
-function setupAdminNotification(adminUid) {
-    Notification.requestPermission().then((permission) => {
-        if (permission === 'granted') {
-            messaging.getToken({
-                vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
-            })
-                .then((token) => {
-                    if (token) {
-                        // บันทึกลง admin_metadata เพื่อให้ User ทุกคนดึงไปส่งแจ้งเตือนได้
-                        firebase.database().ref('admin_metadata/fcmToken').set(token)
-                            .then(() => console.log('✅ Admin Token Updated'));
-                    }
-                });
-        }
-    });
-}
-
-// รับแจ้งเตือนขณะแอดมินเปิดหน้าเว็บค้างไว้
-messaging.onMessage((payload) => {
-    const audio = new Audio('/admin-notify.mp3');
-    audio.play().catch(() => { });
-    alert(`📢 ${payload.notification.title}\n${payload.notification.body}`);
-});
-
-// ตรวจสอบสถานะ Admin เมื่อ Login
-firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-        firebase.database().ref('admins/' + user.uid).once('value').then(snap => {
-            if (snap.val() === true) setupAdminNotification(user.uid);
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then((registration) => {
+            console.log('✅ Service Worker ลงทะเบียนสำเร็จ');
         });
-    }
-});
+}
