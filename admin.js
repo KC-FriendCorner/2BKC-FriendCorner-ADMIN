@@ -14,17 +14,6 @@ if ('serviceWorker' in navigator) {
 // === 🟢 admin.js - ฉบับรวมสมบูรณ์ (พร้อมแก้ไข DeletedAt Display & Long Press) ===
 // =================================================================
 
-// 1. **[CONFIG] ข้อมูล Firebase และ LINE API**
-const firebaseConfig = {
-    apiKey: "AIzaSyCs3_LcJN5RfOIo9jZ4fnz1CBl8hXqfvig",
-    authDomain: "kc-tobe-friendcorner-21655.firebaseapp.com",
-    databaseURL: "https://kc-tobe-friendcorner-21655-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "kc-tobe-friendcorner-21655",
-    storageBucket: "kc-tobe-friendcorner-21655.firebasestorage.app",
-    messagingSenderId: "722433178265",
-    appId: "1:722433178265:web:f7369aa65b3063a8ab1608"
-};
-
 const ADMIN_UID = "o139Nm6N3wSW25fCtAzwf2ymfSm2"; // UID ของผู้ดูแลระบบที่ได้รับอนุญาต
 const ADMIN_UID_TO_HIDE = 'o139Nm6N3wSW25fCtAzwf2ymfSm2'; // 🚩 เปลี่ยนเป็น UID ของ Admin จริง
 
@@ -67,9 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 🚩 [FIX] ตรวจสอบว่า Firebase ถูก Initialized แล้วหรือไม่ (ป้องกันการ Initialize ซ้ำ)
-            if (firebase.apps.length === 0) {
-                firebase.initializeApp(firebaseConfig);
-            }
+        
             const app = firebase.app();
 
             auth = app.auth();
@@ -1756,10 +1743,6 @@ document.addEventListener('DOMContentLoaded', () => {
 //แจ้งเตือนผู้ใช้//
 
 // 1. ตรวจสอบและตั้งค่า Firebase เป็นอันดับแรก
-if (!firebase.apps.length) {
-    // ใช้ค่า Config จากไฟล์ firebase-config.js หรือประกาศตรงนี้
-    firebase.initializeApp(firebaseConfig);
-}
 
 // 2. ประกาศตัวแปร Messaging
 const messaging = firebase.messaging();
@@ -1897,9 +1880,6 @@ firebase.auth().onAuthStateChanged((user) => {
 });
 
 // ตรวจสอบว่า Firebase ถูกสร้างขึ้นหรือยังเพื่อแก้ Error "No Firebase App [DEFAULT]"
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
 
 function saveTokenToDatabase(uid, token, role) {
     // แยกเก็บตามบทบาท (admin_metadata หรือ user_tokens) และตามด้วย UID
