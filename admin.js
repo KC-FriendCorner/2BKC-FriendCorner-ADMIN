@@ -1,18 +1,18 @@
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/firebase-messaging-sw.js')
-        .then((registration) => {
-            console.log('✅ Service Worker พร้อมทำงานแล้ว!');
-            // ส่งพนักงานรับจดหมายให้ Firebase ใช้
-            firebase.messaging().useServiceWorker(registration);
-        })
-        .catch((err) => {
-            console.error('❌ ติดตั้ง Service Worker ไม่สำเร็จ:', err);
-        });
-}
 
 // =================================================================
 // === 🟢 admin.js - ฉบับรวมสมบูรณ์ (พร้อมแก้ไข DeletedAt Display & Long Press) ===
 // =================================================================
+
+// 1. **[CONFIG] ข้อมูล Firebase และ LINE API**
+const firebaseConfig = {
+    apiKey: "AIzaSyCs3_LcJN5RfOIo9jZ4fnz1CBl8hXqfvig",
+    authDomain: "kc-tobe-friendcorner-21655.firebaseapp.com",
+    databaseURL: "https://kc-tobe-friendcorner-21655-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "kc-tobe-friendcorner-21655",
+    storageBucket: "kc-tobe-friendcorner-21655.firebasestorage.app",
+    messagingSenderId: "722433178265",
+    appId: "1:722433178265:web:f7369aa65b3063a8ab1608"
+};
 
 const ADMIN_UID = "o139Nm6N3wSW25fCtAzwf2ymfSm2"; // UID ของผู้ดูแลระบบที่ได้รับอนุญาต
 const ADMIN_UID_TO_HIDE = 'o139Nm6N3wSW25fCtAzwf2ymfSm2'; // 🚩 เปลี่ยนเป็น UID ของ Admin จริง
@@ -56,7 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // 🚩 [FIX] ตรวจสอบว่า Firebase ถูก Initialized แล้วหรือไม่ (ป้องกันการ Initialize ซ้ำ)
-        
+            if (firebase.apps.length === 0) {
+                firebase.initializeApp(firebaseConfig);
+            }
             const app = firebase.app();
 
             auth = app.auth();
@@ -1743,6 +1745,10 @@ document.addEventListener('DOMContentLoaded', () => {
 //แจ้งเตือนผู้ใช้//
 
 // 1. ตรวจสอบและตั้งค่า Firebase เป็นอันดับแรก
+if (!firebase.apps.length) {
+    // ใช้ค่า Config จากไฟล์ firebase-config.js หรือประกาศตรงนี้
+    firebase.initializeApp(firebaseConfig);
+}
 
 // 2. ประกาศตัวแปร Messaging
 const messaging = firebase.messaging();
@@ -1880,6 +1886,9 @@ firebase.auth().onAuthStateChanged((user) => {
 });
 
 // ตรวจสอบว่า Firebase ถูกสร้างขึ้นหรือยังเพื่อแก้ Error "No Firebase App [DEFAULT]"
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
 function saveTokenToDatabase(uid, token, role) {
     // แยกเก็บตามบทบาท (admin_metadata หรือ user_tokens) และตามด้วย UID
@@ -1961,6 +1970,33 @@ async function setupAdminNotification(adminUid) {
 
     } catch (err) {
         console.error("❌ เกิดข้อผิดพลาด:", err);
+    }
+}
+
+// เพิ่มไว้ในไฟล์ admin.js ส่วนที่ใช้ขอ Token
+async function setupNotifications(userUid) {
+    if ('serviceWorker' in navigator) {
+        try {
+            // ลงทะเบียนโดยระบุสโคปที่ชัดเจน
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+                scope: '/'
+            });
+            console.log('✅ Service Worker registered');
+
+            const messaging = firebase.messaging();
+            const token = await messaging.getToken({
+                vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0',
+                serviceWorkerRegistration: registration
+            });
+
+            if (token) {
+                const deviceId = btoa(navigator.userAgent).substring(0, 12);
+                await firebase.database().ref(`admin_tokens/${userUid}/${deviceId}`).set(token);
+                console.log('✅ Admin Token Updated');
+            }
+        } catch (err) {
+            console.error('❌ Notification Setup Error:', err);
+        }
     }
 }
 
