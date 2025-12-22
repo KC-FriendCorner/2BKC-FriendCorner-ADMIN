@@ -1604,7 +1604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (currentToken) {
                             // 3. บันทึก Token โดยแยก Path
                             // ในฟังก์ชัน setupPushNotifications แก้บรรทัดบันทึก Token:
-                            const tokenPath = is_admin ? `admin_tokens/admin_user_001` : `users/${userID}/fcmToken`;
+                            const tokenPath = is_admin ? `admin_metadata/admin_user_001` : `users/${userID}/fcmToken`;
 
                             firebase.database().ref(tokenPath).set(currentToken)
                                 .then(() => console.log(`${is_admin ? 'Admin' : 'User'} Token saved:`, currentToken))
@@ -1848,8 +1848,8 @@ function setupAdminNotification(adminUid) {
                         console.log("✅ ดึง Token สำเร็จ:", currentToken);
 
                         // ✅ ปรับโครงสร้าง Database: เก็บแยกตาม UID และตามด้วย DeviceID
-                        // โครงสร้างจะเป็น: admin_tokens/{adminUid}/{deviceId} = "token_string"
-                        firebase.database().ref(`admin_tokens/${adminUid}/${deviceId}`).set(currentToken)
+                        // โครงสร้างจะเป็น: admin_metadata/{adminUid}/{deviceId} = "token_string"
+                        firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`).set(currentToken)
                             .then(() => {
                                 console.log(`✅ บันทึก Token เรียบร้อย (เครื่อง: ${deviceId})`);
                             })
@@ -1902,8 +1902,8 @@ if (!firebase.apps.length) {
 }
 
 function saveTokenToDatabase(uid, token, role) {
-    // แยกเก็บตามบทบาท (admin_tokens หรือ user_tokens) และตามด้วย UID
-    const path = (role === 'admin') ? `admin_tokens/${uid}` : `user_tokens/${uid}`;
+    // แยกเก็บตามบทบาท (admin_metadata หรือ user_tokens) และตามด้วย UID
+    const path = (role === 'admin') ? `admin_metadata/${uid}` : `user_tokens/${uid}`;
 
     firebase.database().ref(path).set({
         fcmToken: token,
@@ -1916,7 +1916,7 @@ function saveTokenToDatabase(uid, token, role) {
 
 function notifyAllAdminDevices(adminUid, messageText) {
     // ดึง Token ทั้งหมดที่ผูกกับ UID นี้ (ทุกเครื่องที่ล็อกอินค้างไว้)
-    firebase.database().ref(`admin_tokens/${adminUid}`).once('value').then(snapshot => {
+    firebase.database().ref(`admin_metadata/${adminUid}`).once('value').then(snapshot => {
         if (snapshot.exists()) {
             snapshot.forEach(childSnapshot => {
                 const token = childSnapshot.val(); // นี่คือ Token ของแต่ละเครื่อง
@@ -1951,15 +1951,37 @@ async function registerSW() {
 
 // ตอนขอ Token ให้ใช้ registration ที่ได้มา
 async function setupAdminNotification(adminUid) {
-    const registration = await registerSW();
-    const messaging = firebase.messaging();
+    // 1. ตรวจสอบว่า Browser รองรับและโหลด SDK ครบไหม
+    if (!firebase.messaging) {
+        console.error("❌ Firebase Messaging SDK ไม่ถูกโหลด กรุณาเช็คไฟล์ HTML");
+        return;
+    }
 
-    messaging.getToken({
-        vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0',
-        serviceWorkerRegistration: registration // 👈 สำคัญมากสำหรับ HTTPS
-    }).then((token) => {
-        // ... โค้ดบันทึก Token ตามที่เคยทำ ...
-    });
+    try {
+        // 2. ลงทะเบียน Service Worker ให้ชัดเจน (ระบุ Path เริ่มจาก Root)
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        console.log("✅ Service Worker ลงทะเบียนสำเร็จ!");
+
+        const messaging = firebase.messaging();
+
+        // 3. ขอ Token โดยพ่วง Registration เข้าไปด้วย (สำคัญมากสำหรับ HTTPS)
+        const currentToken = await messaging.getToken({
+            vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0',
+            serviceWorkerRegistration: registration
+        });
+
+        if (currentToken) {
+            console.log("✅ ดึง Token สำเร็จ:", currentToken);
+            // สร้าง deviceId เพื่อแยกเครื่อง (ตามที่เราคุยกันก่อนหน้า)
+            const deviceId = btoa(navigator.userAgent).substring(0, 12).replace(/[/+]/g, '');
+
+            await firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`).set(currentToken);
+            console.log("✅ บันทึกลง Database เรียบร้อย");
+        }
+
+    } catch (err) {
+        console.error("❌ เกิดข้อผิดพลาด:", err);
+    }
 }
 
 // เรียกใช้ฟังก์ชันหลัก
