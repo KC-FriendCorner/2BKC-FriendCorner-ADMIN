@@ -1,3 +1,14 @@
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then((registration) => {
+            console.log('✅ Service Worker พร้อมทำงานแล้ว!');
+            // ส่งพนักงานรับจดหมายให้ Firebase ใช้
+            firebase.messaging().useServiceWorker(registration);
+        })
+        .catch((err) => {
+            console.error('❌ ติดตั้ง Service Worker ไม่สำเร็จ:', err);
+        });
+}
 
 // =================================================================
 // === 🟢 admin.js - ฉบับรวมสมบูรณ์ (พร้อมแก้ไข DeletedAt Display & Long Press) ===
@@ -1873,11 +1884,4 @@ firebase.auth().onAuthStateChanged((user) => {
 // ตรวจสอบว่า Firebase ถูกสร้างขึ้นหรือยังเพื่อแก้ Error "No Firebase App [DEFAULT]"
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
-}
-
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/firebase-messaging-sw.js')
-        .then((registration) => {
-            console.log('✅ Service Worker ลงทะเบียนสำเร็จ');
-        });
 }
