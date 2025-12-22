@@ -1813,20 +1813,59 @@ function fetchUserTokenAndNotify(userId, text) {
         .catch(err => console.error("เกิดข้อผิดพลาดในการเรียก API:", err));
 }
 
-//แอดมินแจ้งเตือน//
-
-// เพิ่มโค้ดนี้ใน admin.js เพื่อบันทึก Token ของแอดมิน
+// 1. ประกาศตัวแปร Messaging เพียงครั้งเดียว
 const messaging = firebase.messaging();
 
+// 2. ฟังก์ชันหลักสำหรับขอสิทธิ์และอัปเดต Token ของ Admin
 function setupAdminNotification(adminUid) {
-    messaging.getToken({
-        vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
-    })
-        .then((currentToken) => {
-            if (currentToken) {
-                // เก็บ Token ไว้ในที่ที่ User ทุกคนสามารถเข้าถึงเพื่ออ่านไปส่งแจ้งเตือนได้
-                firebase.database().ref('admin_metadata/fcmToken').set(currentToken);
-                console.log('Admin Token updated');
+    if (!adminUid) return;
+
+    // ขออนุญาตแจ้งเตือนจากเบราว์เซอร์
+    Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+            // ดึง Token ปัจจุบัน
+            messaging.getToken({
+                vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
+            })
+                .then((currentToken) => {
+                    if (currentToken) {
+                        // บันทึก Token ลงพาธ admin_metadata เพื่อให้ User ดึงไปใช้ส่ง API ได้
+                        firebase.database().ref('admin_metadata/fcmToken').set(currentToken)
+                            .then(() => console.log('✅ Admin Token อัปเดตเข้าระบบแล้ว'))
+                            .catch(err => console.error('❌ บันทึก Token ล้มเหลว:', err));
+                    }
+                })
+                .catch((err) => console.error('❌ ดึง Token ผิดพลาด:', err));
+        } else {
+            console.warn('⚠️ แอดมินปฏิเสธการรับแจ้งเตือน');
+        }
+    });
+}
+
+// 3. จัดการแจ้งเตือนขณะแอดมินเปิดหน้าเว็บค้างไว้ (Foreground)
+messaging.onMessage((payload) => {
+    console.log('🔔 ได้รับข้อความใหม่ (ขณะเปิดเว็บ):', payload);
+
+    // เล่นเสียงแจ้งเตือน
+    const audio = new Audio('/admin-notify.mp3');
+    audio.play().catch(e => console.warn("ระบบเสียงถูกบล็อกโดยเบราว์เซอร์:", e));
+
+    // แสดงรายละเอียดแจ้งเตือน
+    const { title, body } = payload.notification;
+
+    // หากต้องการใช้ Toast สวยๆ แทน Alert สามารถเรียกใช้ Library ของคุณที่นี่ได้
+    alert(`📢 ${title}\n${body}`);
+});
+
+// 4. ตรวจสอบสถานะการ Login และความเป็นแอดมิน
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        // ตรวจสอบจากฐานข้อมูลว่า UID นี้คือแอดมินใช่หรือไม่
+        firebase.database().ref('admins/' + user.uid).once('value').then(snap => {
+            if (snap.val() === true) {
+                console.log("Welcome Admin:", user.email);
+                setupAdminNotification(user.uid);
             }
         });
-}
+    }
+});
