@@ -1,18 +1,23 @@
 const admin = require('firebase-admin');
 
-// ดึงฟังก์ชัน Initialize ออกมาด้านนอกเพื่อให้เรียกใช้ได้ชัวร์
+// ใช้ตัวแปร Global เพื่อป้องกันการ Initialize ซ้ำใน Instance เดียวกัน
+let isFirebaseInitialized = false;
+
 function initFirebase() {
     if (admin.apps.length === 0) {
         const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
+        // ล้างค่ากุญแจให้สะอาด ป้องกัน Error 592 (Bit supported)
         const pKey = rawKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '').trim();
 
-        return admin.initializeApp({
+        admin.initializeApp({
             credential: admin.credential.cert({
                 projectId: "kc-tobe-friendcorner-21655",
                 clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
                 privateKey: pKey,
             }),
         });
+        isFirebaseInitialized = true;
+        console.log("✅ Firebase Initialized Successfully");
     }
     return admin.app();
 }
@@ -26,8 +31,8 @@ module.exports = async (req, res) => {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    // 2. รับข้อมูล
-    const { token, title, body, image } = req.body;
+    // 2. รับและตรวจสอบข้อมูล
+    const { token, title, body, image, recipientUid } = req.body;
     if (!token || !title || !body) {
         return res.status(400).json({ error: 'Missing token, title or body' });
     }
@@ -35,7 +40,7 @@ module.exports = async (req, res) => {
     try {
         const app = initFirebase();
 
-        // 3. สร้าง Payload ที่ครอบคลุมทุก Platform
+        // 3. สร้าง Payload แบบเสถียรสูงสุด
         const message = {
             token: token,
             notification: {
@@ -45,23 +50,21 @@ module.exports = async (req, res) => {
             },
             android: {
                 priority: 'high',
+                // collapseKey: ป้องกันการเด้งซ้ำ ถ้าส่งข้อความใหม่ให้ทับอันเก่าทันที
+                collapseKey: recipientUid || 'admin_message',
                 notification: {
                     sound: 'default',
-                    // ถ้าผู้ใช้กดที่แจ้งเตือน ให้เปิดแอปหรือเว็บทันที
-                    clickAction: 'https://2bkc-baojai-zone.vercel.app/'
+                    clickAction: 'https://2bkc-baojai-zone.vercel.app/',
+                    channelId: 'default_channel'
                 }
             },
-            // เพิ่มส่วนนี้สำหรับ iOS โดยเฉพาะ
             apns: {
                 payload: {
                     aps: {
-                        alert: {
-                            title: title,
-                            body: body,
-                        },
+                        alert: { title, body },
                         sound: 'default',
-                        badge: 1, // แสดงตัวเลขสีแดงบนไอคอนแอป
-                        'mutable-content': 1, // จำเป็นสำหรับการแสดงรูปภาพบน iOS
+                        badge: 1,
+                        'mutable-content': 1, // สำคัญ: เพื่อให้ iOS แสดงรูปภาพได้
                         'content-available': 1
                     }
                 },
@@ -70,18 +73,22 @@ module.exports = async (req, res) => {
                 }
             },
             webpush: {
-                headers: { Urgency: 'high' },
+                headers: {
+                    Urgency: 'high',
+                    Topic: recipientUid || 'admin_chat' // ช่วยจัดกลุ่มการส่ง ลดการซ้ำ
+                },
                 notification: {
                     icon: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
-                    badge: 'https://2bkc-baojai-zone.vercel.app/badge.png', // รูปเล็กๆ บน Status bar
-                    requireInteraction: true // แจ้งเตือนจะไม่หายไปจนกว่าผู้ใช้จะกดปิด (ช่วยเรื่องเห็นช้า)
+                    badge: 'https://2bkc-baojai-zone.vercel.app/badge.png',
+                    requireInteraction: true // แจ้งเตือนจะไม่หายไปเองจนกว่าจะกด
                 },
                 fcmOptions: {
                     link: 'https://2bkc-baojai-zone.vercel.app/'
                 }
             },
             data: {
-                url: "https://2bkc-baojai-zone.vercel.app/"
+                url: "https://2bkc-baojai-zone.vercel.app/",
+                click_action: "https://2bkc-baojai-zone.vercel.app/"
             }
         };
 
@@ -91,14 +98,10 @@ module.exports = async (req, res) => {
     } catch (error) {
         console.error('FCM Error:', error);
 
-        // ตรวจสอบ Error เฉพาะทาง (เช่น Token หมดอายุ)
         if (error.code === 'messaging/registration-token-not-registered') {
-            return res.status(410).json({ error: 'Token is no longer valid' });
+            return res.status(410).json({ error: 'Token is invalid' });
         }
 
-        return res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return res.status(500).json({ success: false, error: error.message });
     }
 };
