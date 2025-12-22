@@ -1833,21 +1833,36 @@ function setupAdminNotification(adminUid) {
     console.log("🚀 เริ่มต้นระบบแจ้งเตือนแอดมินสำหรับ UID:", adminUid);
 
     Notification.requestPermission().then((permission) => {
+        console.log("สถานะการขอสิทธิ์:", permission);
+
         if (permission === 'granted') {
+            // สร้าง Device ID อย่างง่ายจากชื่อเบราว์เซอร์ เพื่อแยกคอมพิวเตอร์แต่ละเครื่อง
+            // วิธีนี้จะทำให้แอดมินที่ล็อกอินหลายคน/หลายเครื่อง ไม่บันทึก Token ทับกันเอง
+            const deviceId = btoa(navigator.userAgent).substring(0, 12).replace(/[/+]/g, '');
+
             messaging.getToken({
                 vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
             })
                 .then((currentToken) => {
                     if (currentToken) {
-                        // บันทึกลง admin_metadata เพื่อให้ User ทุกคนดึงไปใช้ส่ง Notify หาแอดมิน
-                        firebase.database().ref('admin_metadata/fcmToken').set(currentToken)
-                            .then(() => console.log('✅ บันทึก Admin Token ลงระบบเรียบร้อย'))
+                        console.log("✅ ดึง Token สำเร็จ:", currentToken);
+
+                        // ✅ ปรับโครงสร้าง Database: เก็บแยกตาม UID และตามด้วย DeviceID
+                        // โครงสร้างจะเป็น: admin_tokens/{adminUid}/{deviceId} = "token_string"
+                        firebase.database().ref(`admin_tokens/${adminUid}/${deviceId}`).set(currentToken)
+                            .then(() => {
+                                console.log(`✅ บันทึก Token เรียบร้อย (เครื่อง: ${deviceId})`);
+                            })
                             .catch(err => console.error('❌ บันทึก Token ล้มเหลว:', err));
+                    } else {
+                        console.warn('❌ ไม่ได้รับ Token');
                     }
                 })
-                .catch((err) => console.error('❌ ดึง Token ผิดพลาด:', err));
+                .catch((err) => {
+                    console.error('❌ ดึง Token ผิดพลาด:', err);
+                });
         } else {
-            console.warn("แอดมินปฏิเสธสิทธิ์การแจ้งเตือน");
+            console.warn("⚠️ แอดมินปฏิเสธสิทธิ์การแจ้งเตือน");
         }
     });
 }
@@ -1885,3 +1900,41 @@ firebase.auth().onAuthStateChanged((user) => {
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
+
+function saveTokenToDatabase(uid, token, role) {
+    // แยกเก็บตามบทบาท (admin_tokens หรือ user_tokens) และตามด้วย UID
+    const path = (role === 'admin') ? `admin_tokens/${uid}` : `user_tokens/${uid}`;
+
+    firebase.database().ref(path).set({
+        fcmToken: token,
+        deviceType: "web",
+        lastUpdated: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+        console.log(`✅ บันทึก Token สำหรับ ${role} (UID: ${uid}) เรียบร้อย`);
+    });
+}
+
+function notifyAllAdminDevices(adminUid, messageText) {
+    // ดึง Token ทั้งหมดที่ผูกกับ UID นี้ (ทุกเครื่องที่ล็อกอินค้างไว้)
+    firebase.database().ref(`admin_tokens/${adminUid}`).once('value').then(snapshot => {
+        if (snapshot.exists()) {
+            snapshot.forEach(childSnapshot => {
+                const token = childSnapshot.val(); // นี่คือ Token ของแต่ละเครื่อง
+
+                // ส่งไปที่ API ของคุณเพื่อยิง Notification
+                fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: token,
+                        title: 'มีข้อความใหม่ถึงแอดมิน 📩',
+                        body: messageText
+                    })
+                }).catch(e => console.error("ส่งหาเครื่องนี้ไม่สำเร็จ:", e));
+            });
+        }
+    });
+}
+
+// เรียกใช้ฟังก์ชันหลัก
+initializeAdminSystem();
