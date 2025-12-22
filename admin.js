@@ -1936,5 +1936,31 @@ function notifyAllAdminDevices(adminUid, messageText) {
     });
 }
 
+async function registerSW() {
+    if ('serviceWorker' in navigator) {
+        try {
+            // ระบุ Path ให้ชัดเจน (เริ่มต้นด้วย / หมายถึง Root)
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            console.log('✅ Service Worker พร้อมทำงานแล้ว!');
+            return registration;
+        } catch (err) {
+            console.error('❌ ติดตั้ง Service Worker ไม่สำเร็จ:', err);
+        }
+    }
+}
+
+// ตอนขอ Token ให้ใช้ registration ที่ได้มา
+async function setupAdminNotification(adminUid) {
+    const registration = await registerSW();
+    const messaging = firebase.messaging();
+
+    messaging.getToken({
+        vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0',
+        serviceWorkerRegistration: registration // 👈 สำคัญมากสำหรับ HTTPS
+    }).then((token) => {
+        // ... โค้ดบันทึก Token ตามที่เคยทำ ...
+    });
+}
+
 // เรียกใช้ฟังก์ชันหลัก
 initializeAdminSystem();
