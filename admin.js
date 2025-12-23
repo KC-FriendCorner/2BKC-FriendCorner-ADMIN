@@ -1998,9 +1998,49 @@ async function saveAdminToken(userUid, token) {
     // สร้าง ID เฉพาะของแต่ละเครื่อง (เช่น ใช้ข้อมูลเบราว์เซอร์)
     const deviceId = btoa(navigator.userAgent).substring(0, 16).replace(/[/+=]/g, '');
 
-    // บันทึกลง path: admin_tokens/UID/DeviceID
-    await firebase.database().ref(`admin_tokens/${userUid}/${deviceId}`).set(token);
+    // บันทึกลง path: admin_metadata/UID/DeviceID
+    await firebase.database().ref(`admin_metadata/${userUid}/${deviceId}`).set(token);
     console.log("✅ บันทึก Token สำหรับเครื่องนี้เรียบร้อย");
+}
+
+// ในฟังก์ชันที่แอดมินได้รับ Token (เช่น setupNotifications หรือ getToken)
+messaging.getToken({ vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0' })
+    .then((currentToken) => {
+        if (currentToken) {
+            // 1. สร้าง Device ID แบบง่ายเพื่อแยกเครื่อง (ใช้วันที่ที่ติดตั้งหรือ UserAgent)
+            // หรือใช้รหัสสุ่มสั้นๆ เก็บไว้ใน localStorage ของเครื่องนั้นๆ
+            let deviceId = localStorage.getItem('admin_device_id');
+            if (!deviceId) {
+                deviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
+                localStorage.setItem('admin_device_id', deviceId);
+            }
+
+            const adminUid = firebase.auth().currentUser.uid;
+
+            // 2. บันทึกลง Path ที่มี deviceId ต่อท้าย เพื่อไม่ให้ทับกัน
+            // โครงสร้างจะเป็น: admin_metadata / {uid} / {deviceId} : "token_value"
+            firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`).set(currentToken)
+                .then(() => {
+                    console.log("✅ บันทึก Token แยกตามเครื่องเรียบร้อย:", deviceId);
+                });
+        }
+    });
+
+// ตัวอย่างการบันทึกใน admin.js
+function saveAdminToken(fcmToken) {
+    const user = firebase.auth().currentUser;
+    if (user) {
+        // สร้าง Device ID ประจำเครื่อง (เก็บไว้ใน localStorage เพื่อให้เครื่องเดิมใช้ ID เดิม)
+        let deviceId = localStorage.getItem('admin_device_id');
+        if (!deviceId) {
+            deviceId = 'device_' + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem('admin_device_id', deviceId);
+        }
+
+        // บันทึกไปที่ admin_metadata
+        firebase.database().ref(`admin_metadata/${user.uid}/${deviceId}`).set(fcmToken)
+            .then(() => console.log("✅ บันทึก Token ลง admin_metadata สำเร็จ เครื่อง:", deviceId));
+    }
 }
 
 // เรียกใช้ฟังก์ชันหลัก
