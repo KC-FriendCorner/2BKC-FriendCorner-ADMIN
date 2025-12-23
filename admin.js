@@ -124,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         token: token,
                         title: 'แอดมินตอบกลับแล้ว ✨',
                         body: message,
-                        image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
                         link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
                     })
                 })
@@ -1839,7 +1838,6 @@ function handleAdminSendMessage(recipientUid, messageText) {
                     token: token,
                     title: 'แอดมินตอบกลับแล้ว ✨',
                     body: messageText,
-                    image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
                     link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
                 })
             })
@@ -1880,7 +1878,6 @@ function fetchUserTokenAndNotify(userId, text) {
                         token: token,
                         title: 'แอดมินตอบกลับแล้ว ✨',
                         body: text,
-                        image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
                         link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
                     })
                 });
