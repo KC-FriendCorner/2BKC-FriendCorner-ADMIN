@@ -1993,5 +1993,15 @@ async function setupNotifications(userUid) {
     }
 }
 
+// ใน admin.js ส่วนที่เก็บ Token ลง Database
+async function saveAdminToken(userUid, token) {
+    // สร้าง ID เฉพาะของแต่ละเครื่อง (เช่น ใช้ข้อมูลเบราว์เซอร์)
+    const deviceId = btoa(navigator.userAgent).substring(0, 16).replace(/[/+=]/g, '');
+
+    // บันทึกลง path: admin_tokens/UID/DeviceID
+    await firebase.database().ref(`admin_tokens/${userUid}/${deviceId}`).set(token);
+    console.log("✅ บันทึก Token สำหรับเครื่องนี้เรียบร้อย");
+}
+
 // เรียกใช้ฟังก์ชันหลัก
 initializeAdminSystem();
