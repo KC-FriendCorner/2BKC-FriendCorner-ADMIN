@@ -123,7 +123,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         token: token,
                         title: 'แอดมินตอบกลับแล้ว ✨',
-                        body: message
+                        body: message,
+                        image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
+                        link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
                     })
                 })
                     .then(res => res.json())
@@ -1836,7 +1838,9 @@ function handleAdminSendMessage(recipientUid, messageText) {
                 body: JSON.stringify({
                     token: token,
                     title: 'แอดมินตอบกลับแล้ว ✨',
-                    body: messageText
+                    body: messageText,
+                    image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
+                    link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
                 })
             })
                 .then(res => res.json())
