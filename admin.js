@@ -1795,13 +1795,18 @@ async function setupAdminNotification(adminUid) {
 /**
  * 3. ตรวจสอบสถานะการ Login
  */
+// แก้ไขจุดเรียกใช้งานใน admin.js
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
-        // ตรวจสอบว่าเป็นแอดมินจริงหรือไม่ก่อนเริ่มระบบแจ้งเตือน
         firebase.database().ref('admins/' + user.uid).once('value').then(snap => {
             if (snap.val() === true) {
                 console.log("ยินดีต้อนรับแอดมิน:", user.email);
-                setupAdminNotification(user.uid);
+
+                // สำหรับ iOS: แนะนำให้เรียก setup เมื่อมีการคลิกที่หน้าจอครั้งแรก
+                // หรือถ้าอยากลองแบบอัตโนมัติ ให้เพิ่ม Delay เล็กน้อย
+                setTimeout(() => {
+                    setupAdminNotification(user.uid);
+                }, 2000); // รอ 2 วินาทีให้หน้าโหลดนิ่งๆ
             }
         });
     }
