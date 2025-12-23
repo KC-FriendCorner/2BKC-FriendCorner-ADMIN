@@ -1855,5 +1855,42 @@ messaging.onMessage((payload) => {
     alert(`📢 ${title}\n${body}`);
 });
 
+/**
+ * ฟังก์ชันสำหรับดึง Token ของ User และส่งแจ้งเตือน
+ * (แก้ Error: fetchUserTokenAndNotify is not defined)
+ */
+function fetchUserTokenAndNotify(userId, text) {
+    console.log("🚀 กำลังพยายามส่งแจ้งเตือนให้ผู้ใช้ ID:", userId);
+
+    // 1. ดึง fcmToken ของผู้ใช้จาก Database
+    firebase.database().ref(`users/${userId}/fcmToken`).once('value')
+        .then((snapshot) => {
+            const token = snapshot.val();
+
+            if (token) {
+                // 2. เรียก API เพื่อส่ง Push Notification
+                return fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: token,
+                        title: 'แอดมินตอบกลับแล้ว ✨',
+                        body: text,
+                        link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
+                    })
+                });
+            } else {
+                console.error("❌ ไม่พบ Token ของผู้ใช้คนนี้ในระบบ");
+            }
+        })
+        .then(res => res ? res.json() : null)
+        .then(data => {
+            if (data && data.success) {
+                console.log("✅ แจ้งเตือนผู้ใช้สำเร็จ:", data);
+            }
+        })
+        .catch(err => console.error("❌ เกิดข้อผิดพลาดในการส่งแจ้งเตือน:", err));
+}
+
 // เรียกใช้ฟังก์ชันหลัก
 initializeAdminSystem();
