@@ -1752,42 +1752,40 @@ if (!firebase.apps.length) {
 const messaging = firebase.messaging();
 
 /**
- * 2. ฟังก์ชันหลักสำหรับขอสิทธิ์และบันทึก Token แบบแยกเครื่อง (Device ID)
- * แก้ปัญหาต้องกด 2 รอบด้วยการใช้ async/await
+ * 2. ฟังก์ชันหลักสำหรับขอสิทธิ์และบันทึก Token แบบแยกเครื่อง
  */
 async function setupAdminNotification(adminUid) {
     console.log("🚀 เริ่มต้นระบบแจ้งเตือนแอดมินสำหรับ UID:", adminUid);
 
     try {
-        // ขอสิทธิ์แจ้งเตือน
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
             console.warn("⚠️ แอดมินปฏิเสธสิทธิ์การแจ้งเตือน");
             return;
         }
 
-        // ลงทะเบียน Service Worker
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
 
-        // ดึง FCM Token
         const currentToken = await messaging.getToken({
             vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0',
             serviceWorkerRegistration: registration
         });
 
         if (currentToken) {
-            // สร้างหรือดึง Device ID จาก localStorage (แม่นยำกว่า userAgent)
             let deviceId = localStorage.getItem('admin_device_id');
             if (!deviceId) {
                 deviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
                 localStorage.setItem('admin_device_id', deviceId);
             }
 
-            // บันทึกลง admin_metadata/{uid}/{deviceId}
-            await firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`).set(currentToken);
-            console.log(`✅ บันทึก Token สำเร็จ (เครื่อง: ${deviceId})`);
-        } else {
-            console.warn('❌ ไม่ได้รับ Token');
+            const tokenRef = firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`);
+            const snapshot = await tokenRef.once('value');
+
+            // บันทึกเฉพาะเมื่อ Token เปลี่ยนเพื่อลดการเขียน Database
+            if (snapshot.val() !== currentToken) {
+                await tokenRef.set(currentToken);
+                console.log(`✅ อัปเดต Token สำเร็จ (เครื่อง: ${deviceId})`);
+            }
         }
     } catch (err) {
         console.error("❌ เกิดข้อผิดพลาดในระบบ Notification:", err);
@@ -1797,111 +1795,189 @@ async function setupAdminNotification(adminUid) {
 /**
  * 3. ตรวจสอบสถานะการ Login
  */
-// แก้ไขจุดเรียกใช้งานใน admin.js
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         firebase.database().ref('admins/' + user.uid).once('value').then(snap => {
             if (snap.val() === true) {
                 console.log("ยินดีต้อนรับแอดมิน:", user.email);
-
-                // สำหรับ iOS: แนะนำให้เรียก setup เมื่อมีการคลิกที่หน้าจอครั้งแรก
-                // หรือถ้าอยากลองแบบอัตโนมัติ ให้เพิ่ม Delay เล็กน้อย
-                setTimeout(() => {
-                    setupAdminNotification(user.uid);
-                }, 2000); // รอ 2 วินาทีให้หน้าโหลดนิ่งๆ
+                setTimeout(() => setupAdminNotification(user.uid), 2000);
             }
         });
     }
 });
 
 /**
- * 4. ฟังก์ชันสำหรับแอดมินส่งแจ้งเตือนหา User (เมื่อตอบแชท)
+ * 4. ฟังก์ชันส่งแจ้งเตือนหา User (เมื่อตอบแชท)
+ * เรียกใช้ฟังก์ชันนี้ในปุ่มส่งข้อความของแอดมิน
  */
-function handleAdminSendMessage(recipientUid, messageText) {
-    if (!recipientUid || !messageText) return;
+async function fetchUserTokenAndNotify(userId, text) {
+    if (!userId || !text) return;
+    console.log("🚀 กำลังพยายามส่งแจ้งเตือนให้ผู้ใช้ ID:", userId);
 
-    // บันทึกข้อความลง Database
-    const chatRef = firebase.database().ref(`messages/${recipientUid}`).push();
-    chatRef.set({
-        sender: 'admin',
-        text: messageText,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => {
-        // ดึง Token ของผู้ใช้จาก Path ที่คุณเก็บ (เช็คให้ชัวร์ว่าเก็บไว้ที่ users/uid/fcmToken)
-        return firebase.database().ref(`users/${recipientUid}/fcmToken`).once('value');
-    }).then((snapshot) => {
+    try {
+        // ดึง Token
+        const snapshot = await firebase.database().ref(`users/${userId}/fcmToken`).once('value');
         const token = snapshot.val();
-        if (token) {
-            fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: token,
-                    title: 'แอดมินตอบกลับแล้ว ✨',
-                    body: messageText,
-                    image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
-                    link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
-                })
-            })
-                .then(res => res.json())
-                .then(data => console.log('✅ ส่งแจ้งเตือนหาผู้ใช้สำเร็จ'))
-                .catch(err => console.error('❌ ส่งแจ้งเตือนหาผู้ใช้ล้มเหลว:', err));
+
+        if (!token || typeof token !== 'string') {
+            console.warn("⚠️ ไม่พบ Token ของผู้ใช้คนนี้ (User อาจยังไม่กดอนุญาตแจ้งเตือน)");
+            return;
         }
+
+        // ส่งผ่าน Vercel API
+        const response = await fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: token,
+                title: 'แอดมินตอบกลับแล้ว ✨',
+                body: text,
+                image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
+                link: 'https://2bkc-baojai-zone.vercel.app/chat',
+                recipientUid: userId
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || `Server Error: ${response.status}`);
+        }
+
+        console.log('✅ แจ้งเตือนผู้ใช้สำเร็จ:', data.messageId);
+
+    } catch (err) {
+        console.error('❌ ข้อผิดพลาดในการส่งแจ้งเตือน:', err.message);
+    }
+}
+
+// 5. รับข้อความขณะเปิดหน้าเว็บค้างไว้ (Foreground Message)
+messaging.onMessage((payload) => {
+    console.log('🔔 ข้อความใหม่เข้า:', payload);
+
+    // เล่นเสียงแจ้งเตือน
+    const audio = new Audio('/admin-notify.mp3');
+    audio.play().catch(() => { });
+
+    // แสดงการแจ้งเตือนในหน้าเว็บ (Alert หรือ Custom Toast)
+    const { title, body } = payload.notification;
+    if (confirm(`📢 ${title}\n${body}\n\nต้องการเปิดหน้าแชทหรือไม่?`)) {
+        window.location.href = payload.data?.click_url || '/admin';
+    }
+});
+
+let pressTimer;
+
+function handleTouchStart(messageId) {
+    // เริ่มจับเวลา (เช่น 800ms คือกดค้าง)
+    pressTimer = window.setTimeout(() => {
+        showDeleteMenu(messageId); // ฟังก์ชันเปิดเมนูยกเลิกข้อความของคุณ
+    }, 800);
+}
+
+function handleTouchEnd() {
+    // ถ้าปล่อยนิ้วก่อนเวลาที่กำหนด ให้ยกเลิกการทำงาน
+    clearTimeout(pressTimer);
+}
+
+// การผูก Event เข้ากับ Message Bubble
+messageElement.addEventListener('touchstart', () => handleTouchStart(msgId), { passive: true });
+messageElement.addEventListener('touchend', handleTouchEnd);
+messageElement.addEventListener('touchmove', handleTouchEnd); // ถ้ามีการเลื่อนนิ้วให้ยกเลิกด้วย
+
+function unsendMessage(messageId) {
+    const chatRef = firebase.database().ref(`messages/${recipientUid}/${messageId}`);
+
+    chatRef.update({
+        text: "ยกเลิกข้อความแล้ว",
+        isUnsent: true,
+        unsentAt: firebase.database.ServerValue.TIMESTAMP
+    }).then(() => {
+        console.log("✅ ยกเลิกข้อความสำเร็จ");
     });
 }
 
-// 5. รับข้อความขณะเปิดหน้าเว็บค้างไว้
-messaging.onMessage((payload) => {
-    console.log('🔔 ข้อความเข้า:', payload);
-    const audio = new Audio('/admin-notify.mp3');
-    audio.play().catch(() => { });
-    const { title, body } = payload.notification;
-    alert(`📢 ${title}\n${body}`);
-});
+// ฟังก์ชันสำหรับผูกเหตุการณ์ให้แต่ละ Message Bubble
+function bindLongPressEvent(element, messageId) {
 
-/**
- * ฟังก์ชันสำหรับดึง Token ของ User และส่งแจ้งเตือน
- * (แก้ Error: fetchUserTokenAndNotify is not defined)
- */
-function fetchUserTokenAndNotify(userId, text) {
-    console.log("🚀 กำลังพยายามส่งแจ้งเตือนให้ผู้ใช้ ID:", userId);
+    // เมื่อเริ่มแตะ
+    element.addEventListener('touchstart', (e) => {
+        // เริ่มจับเวลา 600ms (ค่าที่เหมาะสมสำหรับ iOS)
+        pressTimer = window.setTimeout(() => {
+            // สั่งสั่นเบาๆ (ถ้าเครื่องรองรับ) เพื่อบอกว่ากดติดแล้ว
+            if (navigator.vibrate) navigator.vibrate(50);
 
-    firebase.database().ref(`users/${userId}/fcmToken`).once('value')
-        .then((snapshot) => {
-            const token = snapshot.val();
+            // เรียกฟังก์ชันแสดง Context Menu ของคุณ
+            showContextMenu(e, messageId);
+        }, 600);
+    }, { passive: true });
 
-            if (token && typeof token === 'string') {
-                return fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        token: token,
-                        title: 'แอดมินตอบกลับแล้ว ✨',
-                        body: text,
-                        image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
-                        link: 'https://2bkc-baojai-zone.vercel.app/chat',
-                        recipientUid: userId // ส่ง ID ผู้รับไปด้วยเพื่อให้ Backend ทำ Log ได้ง่ายขึ้น
-                    })
-                });
-            } else {
-                throw new Error("ไม่พบ Token ที่ใช้งานได้ของผู้ใช้คนนี้");
-            }
-        })
-        .then(async (res) => {
-            if (!res) return null;
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || `Server Error ${res.status}`);
-            return data;
-        })
-        .then(data => {
-            if (data && data.success) {
-                console.log("✅ แจ้งเตือนผู้ใช้สำเร็จ:", data);
-            }
-        })
-        .catch(err => {
-            console.error("❌ รายละเอียดข้อผิดพลาด:", err.message);
-            // แจ้งเตือนแอดมินบนหน้าจอให้รู้ว่าส่งแจ้งเตือนไม่สำเร็จ (แต่ข้อความแชทอาจจะเข้าปกติ)
-        });
+    // หากมีการขยับนิ้วหรือปล่อยนิ้วก่อนเวลา ให้ยกเลิก
+    element.addEventListener('touchend', () => clearTimeout(pressTimer));
+    element.addEventListener('touchmove', () => clearTimeout(pressTimer));
+}
+
+// ตัวอย่างฟังก์ชันแสดงเมนู (ต้องปรับให้เข้ากับ Logic เดิมของคุณ)
+function showContextMenu(e, messageId) {
+    const menu = document.querySelector('.context-menu');
+    const touch = e.touches[0];
+
+    // กำหนดตำแหน่งเมนูตามจุดที่แตะ
+    menu.style.top = `${touch.clientY}px`;
+    menu.style.left = `${touch.clientX}px`;
+
+    menu.classList.add('show');
+    // เก็บ ID ข้อความไว้ที่เมนูเพื่อใช้สั่งลบ
+    menu.dataset.targetId = messageId;
+}
+
+// ตัวอย่างการสร้าง Message ในฟังก์ชันแสดงแชทของคุณ
+function displayMessage(msgId, messageData) {
+    const chatBox = document.getElementById('chatBox');
+
+    // 1. สร้าง Container
+    const messageContainer = document.createElement('div');
+    messageContainer.className = messageData.sender === 'admin' ? 'admin-container' : 'user-container';
+    messageContainer.classList.add('message-container');
+
+    // 2. สร้าง Bubble (ตัวที่จะให้กดค้าง)
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+    bubble.innerText = messageData.text;
+
+    // 🔑 [FIX ERROR]: ผูก Event ทันทีที่สร้าง Element เสร็จ
+    // ใช้ฟังก์ชันที่แยกออกมาเพื่อความเป็นระเบียบ
+    addLongPressListener(bubble, msgId);
+
+    messageContainer.appendChild(bubble);
+    chatBox.appendChild(messageContainer);
+}
+
+function addLongPressListener(element, messageId) {
+    if (!element) return; // ป้องกัน Error messageElement is null
+
+    // 🔴 สำหรับ iOS: เริ่มแตะ
+    element.addEventListener('touchstart', (e) => {
+        // หากเป็นการกดแชททั่วไป ไม่ต้องโชว์เมนู แต่ถ้ากดค้าง 600ms ให้ทำงาน
+        pressTimer = window.setTimeout(() => {
+            console.log("Long Press Detected for ID:", messageId);
+
+            // เรียกฟังก์ชันแสดงเมนูยกเลิกข้อความของคุณ
+            // เช่น openContextMenu(e, messageId);
+
+            if (navigator.vibrate) navigator.vibrate(50); // สั่นเบาๆ ให้รู้ว่าติดแล้ว
+        }, 600);
+    }, { passive: true });
+
+    // 🔴 สำหรับ iOS: ปล่อยนิ้ว หรือ ขยับนิ้ว (ให้ยกเลิก Timer)
+    element.addEventListener('touchend', () => clearTimeout(pressTimer));
+    element.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
+    // 🟢 สำหรับ PC/Android: คลิกขวา (Optional)
+    element.addEventListener('contextmenu', (e) => {
+        e.preventDefault(); // ปิดเมนูระบบ
+        // เรียกฟังก์ชันแสดงเมนูยกเลิกข้อความ
+    });
 }
 
 // เรียกใช้ฟังก์ชันหลัก

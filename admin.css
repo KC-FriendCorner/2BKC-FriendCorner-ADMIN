@@ -414,7 +414,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.2;
-    font-size: 1.35rem;
+    font-size: 1.25rem;
     margin-left: 0;
 }
 
@@ -463,13 +463,14 @@ body {
     overflow-y: auto;
     background: #f0f0f0;
     border: none;
-    border-radius: 8px;
+    border-radius: 11px;
     padding: 10px 15px;
     display: flex;
     flex-direction: column;
     gap: 3px;
     margin: 15px;
     position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .chat-list-header {
@@ -510,7 +511,7 @@ body {
     padding: 6px 12px;
     font-size: 15px;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: 11px;
     transition: background-color 0.2s;
     white-space: nowrap;
     width: auto;
@@ -741,6 +742,19 @@ body {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+
+    /* 🔑 [CRITICAL FIX สำหรับ iOS] */
+    -webkit-touch-callout: none !important;
+    /* ปิดเมนูแว่นขยายและเมนู Copy ของ iOS */
+    -webkit-user-select: none !important;
+    /* ปิดการเลือกข้อความ */
+    user-select: none !important;
+
+    /* 🔑 เพิ่มบรรทัดนี้เพื่อลดความหน่วงเวลาสัมผัส */
+    touch-action: manipulation;
+
+    /* 🔑 ปิด Highlight สีฟ้าเวลาแตะบน iOS */
+    -webkit-tap-highlight-color: transparent;
 }
 
 .message-bubble:hover {
@@ -911,14 +925,14 @@ body {
 
 .context-menu {
     position: absolute;
-    top: -30px;
+    top: 0px;
     /* 🔑 [FIXED]: ปรับให้ลอยอยู่เหนือ Bubble (จากเดิม 5px) */
     z-index: 100;
     /* 🔑 [CONFIRMED]: z-index สูงพอ */
     min-width: 150px;
     background-color: white;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    border-radius: 5px;
+    border-radius: 11px;
     overflow: hidden;
     opacity: 0;
     visibility: hidden;
@@ -927,6 +941,11 @@ body {
     right: auto;
     pointer-events: none;
     /* ปิดไว้เมื่อยังไม่แสดง */
+    position: fixed;
+    /* เปลี่ยนจาก absolute เป็น fixed เพื่อให้อยู่เหนือทุกอย่างจริงๆ */
+    /* กำหนดค่าเริ่มต้นให้มองไม่เห็น */
+    pointer-events: none;
+    will-change: transform, opacity;
 }
 
 .context-menu.show {
@@ -944,7 +963,7 @@ body {
 }
 
 .context-menu-item {
-    padding: 10px 15px;
+    padding: 9px 15px;
     cursor: pointer;
     font-size: 0.9em;
     color: var(--text-color);
@@ -985,7 +1004,7 @@ body {
     box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
     border-radius: 0 0 9px 9px;
     margin: 0;
-    padding: 10px 15px;
+    padding: 9px 15px;
 }
 
 .context-menu-item.delete:first-child:last-child:hover {
