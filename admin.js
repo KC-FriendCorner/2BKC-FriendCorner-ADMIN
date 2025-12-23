@@ -1876,6 +1876,7 @@ function fetchUserTokenAndNotify(userId, text) {
                         token: token,
                         title: 'แอดมินตอบกลับแล้ว ✨',
                         body: text,
+                        image: 'https://2bkc-baojai-zone.vercel.app/adminปก1.png',
                         link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
                     })
                 });
