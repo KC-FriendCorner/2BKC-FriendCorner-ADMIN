@@ -1742,19 +1742,73 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadHistoryChats = () => window.loadChatList(true);
 });
 
-//แจ้งเตือนผู้ใช้//
-
-// 1. ตรวจสอบและตั้งค่า Firebase เป็นอันดับแรก
+// 1. ตรวจสอบและตั้งค่า Firebase
 if (!firebase.apps.length) {
-    // ใช้ค่า Config จากไฟล์ firebase-config.js หรือประกาศตรงนี้
     firebase.initializeApp(firebaseConfig);
 }
 
-// 2. ประกาศตัวแปร Messaging
 const messaging = firebase.messaging();
 
 /**
- * 3. ฟังก์ชันสำหรับส่งแจ้งเตือนไปหา User (เมื่อแอดมินตอบแชท)
+ * 2. ฟังก์ชันหลักสำหรับขอสิทธิ์และบันทึก Token แบบแยกเครื่อง (Device ID)
+ * แก้ปัญหาต้องกด 2 รอบด้วยการใช้ async/await
+ */
+async function setupAdminNotification(adminUid) {
+    console.log("🚀 เริ่มต้นระบบแจ้งเตือนแอดมินสำหรับ UID:", adminUid);
+
+    try {
+        // ขอสิทธิ์แจ้งเตือน
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.warn("⚠️ แอดมินปฏิเสธสิทธิ์การแจ้งเตือน");
+            return;
+        }
+
+        // ลงทะเบียน Service Worker
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+
+        // ดึง FCM Token
+        const currentToken = await messaging.getToken({
+            vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0',
+            serviceWorkerRegistration: registration
+        });
+
+        if (currentToken) {
+            // สร้างหรือดึง Device ID จาก localStorage (แม่นยำกว่า userAgent)
+            let deviceId = localStorage.getItem('admin_device_id');
+            if (!deviceId) {
+                deviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
+                localStorage.setItem('admin_device_id', deviceId);
+            }
+
+            // บันทึกลง admin_metadata/{uid}/{deviceId}
+            await firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`).set(currentToken);
+            console.log(`✅ บันทึก Token สำเร็จ (เครื่อง: ${deviceId})`);
+        } else {
+            console.warn('❌ ไม่ได้รับ Token');
+        }
+    } catch (err) {
+        console.error("❌ เกิดข้อผิดพลาดในระบบ Notification:", err);
+    }
+}
+
+/**
+ * 3. ตรวจสอบสถานะการ Login
+ */
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        // ตรวจสอบว่าเป็นแอดมินจริงหรือไม่ก่อนเริ่มระบบแจ้งเตือน
+        firebase.database().ref('admins/' + user.uid).once('value').then(snap => {
+            if (snap.val() === true) {
+                console.log("ยินดีต้อนรับแอดมิน:", user.email);
+                setupAdminNotification(user.uid);
+            }
+        });
+    }
+});
+
+/**
+ * 4. ฟังก์ชันสำหรับแอดมินส่งแจ้งเตือนหา User (เมื่อตอบแชท)
  */
 function handleAdminSendMessage(recipientUid, messageText) {
     if (!recipientUid || !messageText) return;
@@ -1766,7 +1820,7 @@ function handleAdminSendMessage(recipientUid, messageText) {
         text: messageText,
         timestamp: firebase.database.ServerValue.TIMESTAMP
     }).then(() => {
-        // ดึง Token ของผู้ใช้เพื่อส่ง Notify
+        // ดึง Token ของผู้ใช้จาก Path ที่คุณเก็บ (เช็คให้ชัวร์ว่าเก็บไว้ที่ users/uid/fcmToken)
         return firebase.database().ref(`users/${recipientUid}/fcmToken`).once('value');
     }).then((snapshot) => {
         const token = snapshot.val();
@@ -1781,267 +1835,20 @@ function handleAdminSendMessage(recipientUid, messageText) {
                 })
             })
                 .then(res => res.json())
-                .then(data => console.log('✅ แจ้งเตือนผู้ใช้สำเร็จ:', data))
-                .catch(err => console.error('❌ แจ้งเตือนผู้ใช้ล้มเหลว:', err));
+                .then(data => console.log('✅ ส่งแจ้งเตือนหาผู้ใช้สำเร็จ'))
+                .catch(err => console.error('❌ ส่งแจ้งเตือนหาผู้ใช้ล้มเหลว:', err));
         }
     });
 }
 
-// ตัวอย่างการแก้ใน admin.js จุดที่ส่งแจ้งเตือน
-function fetchUserTokenAndNotify(userId, text) {
-    console.log("กำลังพยายามดึง Token สำหรับ:", userId); // [เช็คที่ 1]: ID ถูกไหม?
-
-    firebase.database().ref(`users/${userId}/fcmToken`).once('value')
-        .then((snapshot) => {
-            const token = snapshot.val();
-            console.log("Token ที่ดึงได้คือ:", token); // [เช็คที่ 2]: Token มีค่าไหม?
-
-            if (token) {
-                return fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        token: token,
-                        title: 'แอดมินตอบกลับแล้ว ✨',
-                        body: text
-                    })
-                });
-            } else {
-                console.error("❌ ไม่พบ Token ใน Database ภายใต้ Path: users/" + userId + "/fcmToken");
-            }
-        })
-        .then(res => res ? res.json() : null)
-        .then(data => console.log("ผลลัพธ์จาก API:", data))
-        .catch(err => console.error("เกิดข้อผิดพลาดในการเรียก API:", err));
-}
-
-/**
- * 4. ฟังก์ชันหลักสำหรับขอสิทธิ์และบันทึก Token ของ Admin (เพื่อให้ User ทักมาแล้วแอดมินรู้ตัว)
- */
-function setupAdminNotification(adminUid) {
-    console.log("🚀 เริ่มต้นระบบแจ้งเตือนแอดมินสำหรับ UID:", adminUid);
-
-    Notification.requestPermission().then((permission) => {
-        console.log("สถานะการขอสิทธิ์:", permission);
-
-        if (permission === 'granted') {
-            // สร้าง Device ID อย่างง่ายจากชื่อเบราว์เซอร์ เพื่อแยกคอมพิวเตอร์แต่ละเครื่อง
-            // วิธีนี้จะทำให้แอดมินที่ล็อกอินหลายคน/หลายเครื่อง ไม่บันทึก Token ทับกันเอง
-            const deviceId = btoa(navigator.userAgent).substring(0, 12).replace(/[/+]/g, '');
-
-            messaging.getToken({
-                vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
-            })
-                .then((currentToken) => {
-                    if (currentToken) {
-                        console.log("✅ ดึง Token สำเร็จ:", currentToken);
-
-                        // ✅ ปรับโครงสร้าง Database: เก็บแยกตาม UID และตามด้วย DeviceID
-                        // โครงสร้างจะเป็น: admin_metadata/{adminUid}/{deviceId} = "token_string"
-                        firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`).set(currentToken)
-                            .then(() => {
-                                console.log(`✅ บันทึก Token เรียบร้อย (เครื่อง: ${deviceId})`);
-                            })
-                            .catch(err => console.error('❌ บันทึก Token ล้มเหลว:', err));
-                    } else {
-                        console.warn('❌ ไม่ได้รับ Token');
-                    }
-                })
-                .catch((err) => {
-                    console.error('❌ ดึง Token ผิดพลาด:', err);
-                });
-        } else {
-            console.warn("⚠️ แอดมินปฏิเสธสิทธิ์การแจ้งเตือน");
-        }
-    });
-}
-
-/**
- * 5. จัดการแจ้งเตือนขณะแอดมินเปิดหน้าเว็บค้างไว้ (Foreground Notification)
- */
+// 5. รับข้อความขณะเปิดหน้าเว็บค้างไว้
 messaging.onMessage((payload) => {
-    console.log('🔔 ข้อความเข้าขณะเปิดเว็บ:', payload);
-
-    // เล่นเสียงแจ้งเตือน (ตรวจสอบว่าไฟล์มีอยู่จริง)
+    console.log('🔔 ข้อความเข้า:', payload);
     const audio = new Audio('/admin-notify.mp3');
-    audio.play().catch(e => console.warn("ไม่สามารถเล่นเสียงได้:", e));
-
-    // แสดงรายละเอียด (ใช้ Alert หรือ Toast ตามสะดวก)
+    audio.play().catch(() => { });
     const { title, body } = payload.notification;
     alert(`📢 ${title}\n${body}`);
 });
-
-/**
- * 6. ตรวจสอบสถานะการ Login และความเป็นแอดมิน
- */
-firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-        firebase.database().ref('admins/' + user.uid).once('value').then(snap => {
-            if (snap.val() === true) {
-                console.log("ยินดีต้อนรับแอดมิน:", user.email);
-                setupAdminNotification(user.uid);
-            }
-        });
-    }
-});
-
-// ตรวจสอบว่า Firebase ถูกสร้างขึ้นหรือยังเพื่อแก้ Error "No Firebase App [DEFAULT]"
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-
-function saveTokenToDatabase(uid, token, role) {
-    // แยกเก็บตามบทบาท (admin_metadata หรือ user_tokens) และตามด้วย UID
-    const path = (role === 'admin') ? `admin_metadata/${uid}` : `user_tokens/${uid}`;
-
-    firebase.database().ref(path).set({
-        fcmToken: token,
-        deviceType: "web",
-        lastUpdated: firebase.database.ServerValue.TIMESTAMP
-    }).then(() => {
-        console.log(`✅ บันทึก Token สำหรับ ${role} (UID: ${uid}) เรียบร้อย`);
-    });
-}
-
-function notifyAllAdminDevices(adminUid, messageText) {
-    // ดึง Token ทั้งหมดที่ผูกกับ UID นี้ (ทุกเครื่องที่ล็อกอินค้างไว้)
-    firebase.database().ref(`admin_metadata/${adminUid}`).once('value').then(snapshot => {
-        if (snapshot.exists()) {
-            snapshot.forEach(childSnapshot => {
-                const token = childSnapshot.val(); // นี่คือ Token ของแต่ละเครื่อง
-
-                // ส่งไปที่ API ของคุณเพื่อยิง Notification
-                fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        token: token,
-                        title: 'มีข้อความใหม่ถึงแอดมิน 📩',
-                        body: messageText
-                    })
-                }).catch(e => console.error("ส่งหาเครื่องนี้ไม่สำเร็จ:", e));
-            });
-        }
-    });
-}
-
-async function registerSW() {
-    if ('serviceWorker' in navigator) {
-        try {
-            // ระบุ Path ให้ชัดเจน (เริ่มต้นด้วย / หมายถึง Root)
-            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-            console.log('✅ Service Worker พร้อมทำงานแล้ว!');
-            return registration;
-        } catch (err) {
-            console.error('❌ ติดตั้ง Service Worker ไม่สำเร็จ:', err);
-        }
-    }
-}
-
-// ตอนขอ Token ให้ใช้ registration ที่ได้มา
-async function setupAdminNotification(adminUid) {
-    // 1. ตรวจสอบว่า Browser รองรับและโหลด SDK ครบไหม
-    if (!firebase.messaging) {
-        console.error("❌ Firebase Messaging SDK ไม่ถูกโหลด กรุณาเช็คไฟล์ HTML");
-        return;
-    }
-
-    try {
-        // 2. ลงทะเบียน Service Worker ให้ชัดเจน (ระบุ Path เริ่มจาก Root)
-        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log("✅ Service Worker ลงทะเบียนสำเร็จ!");
-
-        const messaging = firebase.messaging();
-
-        // 3. ขอ Token โดยพ่วง Registration เข้าไปด้วย (สำคัญมากสำหรับ HTTPS)
-        const currentToken = await messaging.getToken({
-            vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0',
-            serviceWorkerRegistration: registration
-        });
-
-        if (currentToken) {
-            console.log("✅ ดึง Token สำเร็จ:", currentToken);
-            // สร้าง deviceId เพื่อแยกเครื่อง (ตามที่เราคุยกันก่อนหน้า)
-            const deviceId = btoa(navigator.userAgent).substring(0, 12).replace(/[/+]/g, '');
-
-            await firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`).set(currentToken);
-            console.log("✅ บันทึกลง Database เรียบร้อย");
-        }
-
-    } catch (err) {
-        console.error("❌ เกิดข้อผิดพลาด:", err);
-    }
-}
-
-async function setupNotifications(userUid) {
-    const messaging = firebase.messaging();
-    try {
-        const token = await messaging.getToken({
-            vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0'
-        });
-
-        if (token) {
-            // สร้าง Device ID แบบสุ่มหรือดึงจาก UserAgent เพื่อแยกแต่ละเครื่อง
-            const deviceId = btoa(navigator.userAgent).substring(0, 16).replace(/[/+=]/g, '');
-
-            // บันทึกไปที่ path ใหม่: admin_metadata/UID/DeviceID
-            await firebase.database().ref(`admin_metadata/${userUid}/${deviceId}`).set(token);
-            console.log("✅ บันทึก Token สำหรับเครื่องนี้เรียบร้อย");
-        }
-    } catch (err) {
-        console.error("❌ เกิดข้อผิดพลาดในการดึง Token:", err);
-    }
-}
-
-// ใน admin.js ส่วนที่เก็บ Token ลง Database
-async function saveAdminToken(userUid, token) {
-    // สร้าง ID เฉพาะของแต่ละเครื่อง (เช่น ใช้ข้อมูลเบราว์เซอร์)
-    const deviceId = btoa(navigator.userAgent).substring(0, 16).replace(/[/+=]/g, '');
-
-    // บันทึกลง path: admin_metadata/UID/DeviceID
-    await firebase.database().ref(`admin_metadata/${userUid}/${deviceId}`).set(token);
-    console.log("✅ บันทึก Token สำหรับเครื่องนี้เรียบร้อย");
-}
-
-// ในฟังก์ชันที่แอดมินได้รับ Token (เช่น setupNotifications หรือ getToken)
-messaging.getToken({ vapidKey: 'BKhAJml-bMHqQT-4kaIe5Sdo4vSzlaoca2cmGmQMoFf9UKpzzuUf7rcEWJL4rIlqIArHxUZkyeRi63CnykNjLD0' })
-    .then((currentToken) => {
-        if (currentToken) {
-            // 1. สร้าง Device ID แบบง่ายเพื่อแยกเครื่อง (ใช้วันที่ที่ติดตั้งหรือ UserAgent)
-            // หรือใช้รหัสสุ่มสั้นๆ เก็บไว้ใน localStorage ของเครื่องนั้นๆ
-            let deviceId = localStorage.getItem('admin_device_id');
-            if (!deviceId) {
-                deviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
-                localStorage.setItem('admin_device_id', deviceId);
-            }
-
-            const adminUid = firebase.auth().currentUser.uid;
-
-            // 2. บันทึกลง Path ที่มี deviceId ต่อท้าย เพื่อไม่ให้ทับกัน
-            // โครงสร้างจะเป็น: admin_metadata / {uid} / {deviceId} : "token_value"
-            firebase.database().ref(`admin_metadata/${adminUid}/${deviceId}`).set(currentToken)
-                .then(() => {
-                    console.log("✅ บันทึก Token แยกตามเครื่องเรียบร้อย:", deviceId);
-                });
-        }
-    });
-
-// ตัวอย่างการบันทึกใน admin.js
-function saveAdminToken(fcmToken) {
-    const user = firebase.auth().currentUser;
-    if (user) {
-        // สร้าง Device ID ประจำเครื่อง (เก็บไว้ใน localStorage เพื่อให้เครื่องเดิมใช้ ID เดิม)
-        let deviceId = localStorage.getItem('admin_device_id');
-        if (!deviceId) {
-            deviceId = 'device_' + Math.random().toString(36).substring(2, 9);
-            localStorage.setItem('admin_device_id', deviceId);
-        }
-
-        // บันทึกไปที่ admin_metadata
-        firebase.database().ref(`admin_metadata/${user.uid}/${deviceId}`).set(fcmToken)
-            .then(() => console.log("✅ บันทึก Token ลง admin_metadata สำเร็จ เครื่อง:", deviceId));
-    }
-}
 
 // เรียกใช้ฟังก์ชันหลัก
 initializeAdminSystem();
