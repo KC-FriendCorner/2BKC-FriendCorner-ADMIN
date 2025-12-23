@@ -1866,13 +1866,11 @@ messaging.onMessage((payload) => {
 function fetchUserTokenAndNotify(userId, text) {
     console.log("🚀 กำลังพยายามส่งแจ้งเตือนให้ผู้ใช้ ID:", userId);
 
-    // 1. ดึง fcmToken ของผู้ใช้จาก Database
     firebase.database().ref(`users/${userId}/fcmToken`).once('value')
         .then((snapshot) => {
             const token = snapshot.val();
 
-            if (token) {
-                // 2. เรียก API เพื่อส่ง Push Notification
+            if (token && typeof token === 'string') {
                 return fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1881,20 +1879,29 @@ function fetchUserTokenAndNotify(userId, text) {
                         title: 'แอดมินตอบกลับแล้ว ✨',
                         body: text,
                         image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
-                        link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
+                        link: 'https://2bkc-baojai-zone.vercel.app/chat',
+                        recipientUid: userId // ส่ง ID ผู้รับไปด้วยเพื่อให้ Backend ทำ Log ได้ง่ายขึ้น
                     })
                 });
             } else {
-                console.error("❌ ไม่พบ Token ของผู้ใช้คนนี้ในระบบ");
+                throw new Error("ไม่พบ Token ที่ใช้งานได้ของผู้ใช้คนนี้");
             }
         })
-        .then(res => res ? res.json() : null)
+        .then(async (res) => {
+            if (!res) return null;
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || `Server Error ${res.status}`);
+            return data;
+        })
         .then(data => {
             if (data && data.success) {
                 console.log("✅ แจ้งเตือนผู้ใช้สำเร็จ:", data);
             }
         })
-        .catch(err => console.error("❌ เกิดข้อผิดพลาดในการส่งแจ้งเตือน:", err));
+        .catch(err => {
+            console.error("❌ รายละเอียดข้อผิดพลาด:", err.message);
+            // แจ้งเตือนแอดมินบนหน้าจอให้รู้ว่าส่งแจ้งเตือนไม่สำเร็จ (แต่ข้อความแชทอาจจะเข้าปกติ)
+        });
 }
 
 // เรียกใช้ฟังก์ชันหลัก
