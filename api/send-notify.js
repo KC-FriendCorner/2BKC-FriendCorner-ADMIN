@@ -42,9 +42,9 @@ module.exports = async (req, res) => {
 
     try {
         const messaging = initFirebase();
-        const defaultLink = link || 'https://2bkc-baojai-zone.vercel.app/';
+        const defaultLink = link || 'https://2bkc-baojai-zone-admin.vercel.app/';
         // ✅ ใช้ KCปก1.png เป็นหลัก
-        const defaultIcon = 'https://2bkc-baojai-zone.vercel.app/KCปก1.png'; 
+        const defaultIcon = 'https://2bkc-baojai-zone-admin.vercel.app/adminปก1.png'; 
 
         const message = {
             token: token,
@@ -82,7 +82,7 @@ module.exports = async (req, res) => {
                 notification: {
                     icon: defaultIcon,
                     // ✅ แก้ชื่อไฟล์ให้ตรง (KCปก1.png)
-                    badge: 'https://2bkc-baojai-zone.vercel.app/badge.png', 
+                    badge: 'https://2bkc-baojai-zone-admin.vercel.app/adminbadge.png', 
                     requireInteraction: true,
                     tag: recipientUid || 'user_msg',
                 },
