@@ -47,7 +47,7 @@ module.exports = async (req, res) => {
     try {
         const messaging = initFirebase();
         const defaultLink = link || 'https://2bkc-baojai-zone.vercel.app/';
-        const defaultIcon = 'https://2bkc-baojai-zone.vercel.app/KCปก1.png';
+        const defaultIcon = 'https://2bkc-baojai-zone.vercel.app/adminปก1.png';
         const imageUrl = image || defaultIcon;
 
         const message = {
@@ -90,7 +90,7 @@ module.exports = async (req, res) => {
                 notification: {
                     icon: defaultIcon,
                     image: imageUrl,
-                    badge: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
+                    badge: 'https://2bkc-baojai-zone.vercel.app/adminปก1.png',
                     requireInteraction: true,
                     tag: recipientUid || 'general_msg', // ใช้ tag เพื่อรวมแจ้งเตือนจากคนเดิมไม่ให้รก
                     requireInteraction: true // แจ้งเตือนจะไม่หายไปจนกว่าจะกด
@@ -131,4 +131,5 @@ module.exports = async (req, res) => {
             code: error.code || 'internal_error'
         });
     }
+
 };
