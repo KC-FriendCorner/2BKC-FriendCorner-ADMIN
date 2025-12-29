@@ -1826,7 +1826,7 @@ async function fetchUserTokenAndNotify(userId, text) {
         }
 
         // ส่งผ่าน Vercel API
-        const response = await fetch('https://2bkc-baojai-zone-admin.vercel.app/api/send-notify', {
+        const response = await fetch('https://2bkc-baojai-zone.vercel.app/api/send-notify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
