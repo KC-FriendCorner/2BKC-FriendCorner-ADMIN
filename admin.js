@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         token: token,
                         title: 'แอดมินตอบกลับแล้ว ✨',
                         body: message,
+                        icon: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png', // รูปเล็ก
                         image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
                         link: 'https://2bkc-baojai-zone.vercel.app/' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
                     })
@@ -1832,6 +1833,7 @@ async function fetchUserTokenAndNotify(userId, text) {
                 token: token,
                 title: 'มีข้อความใหม่! 💬',
                 body: text,
+                icon: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png', // รูปเล็ก
                 image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
                 link: 'https://2bkc-baojai-zone.vercel.app/',
                 recipientUid: userId
