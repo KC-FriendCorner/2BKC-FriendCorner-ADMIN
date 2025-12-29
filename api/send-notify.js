@@ -87,7 +87,7 @@ module.exports = async (req, res) => {
                 },
                 notification: {
                     icon: defaultIcon,
-                    badge: 'https://2bkc-baojai-zone-admin.vercel.app/adminbadge.jpg',
+                    badge: 'https://2bkc-baojai-zone-admin.vercel.app/adminbadge.png',
                     requireInteraction: true,
                     tag: recipientUid || 'general_msg', // ใช้ tag เพื่อรวมแจ้งเตือนจากคนเดิมไม่ให้รก
                     requireInteraction: true // แจ้งเตือนจะไม่หายไปจนกว่าจะกด
