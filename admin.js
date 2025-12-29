@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         title: 'แอดมินตอบกลับแล้ว ✨',
                         body: message,
                         image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
-                        link: 'https://2bkc-baojai-zone.vercel.app/chat' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
+                        link: 'https://2bkc-baojai-zone.vercel.app/' // ลิงก์กลับไปยังหน้าแชทของผู้ใช้
                     })
                 })
                     .then(res => res.json())
@@ -1830,7 +1830,7 @@ async function fetchUserTokenAndNotify(userId, text) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: token,
-                title: 'แอดมินตอบกลับแล้ว ✨',
+                title: 'มีข้อความใหม่! 💬',
                 body: text,
                 image: 'https://2bkc-baojai-zone.vercel.app/KCปก1.png',
                 link: 'https://2bkc-baojai-zone.vercel.app/chat',
