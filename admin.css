@@ -4,7 +4,6 @@
 
 /* 0. VARIABLES & BASE STYLES */
 :root {
-    /* 🔴 [ปรับสีหลัก: สีแดงเลือดหมูสดใส] */
     --primary-color: #A51C30;
     --primary-hover: #8F192A;
     --accent-color: #A51C30;
@@ -18,33 +17,46 @@
     --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
     --danger-color: #dc3545;
     --danger-hover: #c82333;
-
-    /* 💡 Chat Bubble Colors */
     --user-bubble-bg: #e4e6eb;
     --admin-bubble-bg: var(--primary-color);
-    --border-radius-md: 8px;
-
-    /* 🔑 [NEW VARIABLES] สำหรับ Bubble Grouping และ Effects */
     --border-radius-bubble: 18px;
-    /* ค่าโค้งมนสูงสุด */
     --border-radius-group: 8px;
-    /* ค่าโค้งมนต่ำสุด/แหลม */
     --transition-time: 0.25s;
-    /* เวลาสำหรับ Transition */
+}
+
+/* 1. GLOBAL MOBILE FIXES */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none !important;
+    /* ปิดเมนูระบบ iOS เพื่อใช้ Long Press ของเรา */
+    -webkit-user-select: none;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+input,
+textarea,
+.selectable-text {
+    -webkit-user-select: text !important;
+    user-select: text !important;
 }
 
 html,
 body {
     height: 100%;
+    width: 100%;
     margin: 0;
     padding: 0;
-    font-family: 'Prompt', sans-serif, Arial;
     background-color: var(--background-color);
-    color: var(--text-color);
+    font-family: 'Prompt', sans-serif;
+    overflow: hidden;
+    /* บังคับให้ Scroll เฉพาะในจุดที่กำหนด */
+
     overflow-x: hidden;
-    /* 🔑 [FIX 1/3]: เปลี่ยน overflow-y: hidden; เป็นการจัดการใน Container ย่อย */
-    overflow-y: auto;
-    /* อนุญาตให้ Scrollbar ของ Body/HTML ทำงานได้ถ้าจำเป็น */
+    /* กันจอกระตุกซ้ายขวา */
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    /* ให้การไถหน้าจอบน iOS ลื่นไหล */
 }
 
 /* 1. LAYOUT & CONTAINER (Full Viewport) */
@@ -314,19 +326,111 @@ body {
 }
 
 
-/* 4. ADMIN PANEL & LIST PANELS */
+/* 2. RESPONSIVE CONTAINER (ปรับขนาดตามหน้าจอแอดมิน) */
 #adminPanelContainer {
     width: 100vw !important;
     height: 100vh !important;
-    box-shadow: none;
-    border-radius: 0;
-    background-color: var(--container-bg);
-    /* 🔑 [FIX 3/3]: ลบ overflow: hidden; ออกจาก container หลัก */
-    overflow: hidden;
-    /* คงไว้ที่ hidden เพื่อบังคับให้ #listScreen จัดการพื้นที่ scroll ภายในแทน */
+    display: flex;
+    flex-direction: column;
     position: relative;
-    display: block;
-    padding: 0 !important;
+    overflow: hidden;
+}
+
+/* 3. SCREENS & PANELS */
+#listScreen,
+#historyScreen,
+#chatScreenContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--container-bg);
+    display: none;
+    flex-direction: column;
+    z-index: 50;
+}
+
+#chatListPanel,
+#historyListPanel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 4. SCROLLABLE AREAS (ทำให้เลื่อนได้ลื่นบนมือถือ) */
+#chatList,
+#historyList,
+#chatBox {
+    flex: 1;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    /* 🔑 ลื่นไหลบน iOS */
+    padding: 15px;
+    touch-action: pan-y;
+    /* 🔑 สำคัญ: ยอมให้เลื่อนขึ้นลงได้แม้จะกดโดนบับเบิ้ล */
+}
+
+#listScreen,
+#historyScreen,
+#chatScreenContainer {
+    display: none;
+    /* ควบคุมการแสดงผลด้วย JS */
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    /* บังคับให้เต็มจอเมื่อแสดงผล */
+    background-color: var(--container-bg);
+    position: fixed;
+    /* ใช้ fixed เพื่อให้หน้าจอแชททับหน้าจอหลักได้สนิท */
+    top: 0;
+    left: 0;
+    z-index: 50;
+}
+
+#chatList,
+#historyList,
+#chatBox {
+    flex: 1;
+    overflow-y: auto !important;
+    /* บังคับให้มี Scroll */
+    -webkit-overflow-scrolling: touch;
+    /* 🔑 ทำให้เลื่อนลื่นบน iOS */
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+#listScreen,
+#historyScreen {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    background-color: var(--container-bg);
+}
+
+#chatListPanel,
+#historyListPanel {
+    flex-grow: 1;
+    height: calc(100% - 60px);
+    display: flex;
+    flex-direction: column;
+}
+
+#chatList,
+#historyList,
+#chatBox {
+    flex-grow: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* ให้การ Scroll บน iOS ลื่นไหล */
+    padding: 10px;
 }
 
 #listScreenContainer {
@@ -402,6 +506,13 @@ body {
     flex-shrink: 0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     gap: 10px;
+
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+    box-sizing: border-box;
+    /* ป้องกันขนาดเพี้ยน */
 }
 
 #chatTitle {
@@ -471,6 +582,14 @@ body {
     margin: 15px;
     position: relative;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    background-image: url('bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    /* 🚩 คำสั่งล็อกรูปให้นิ่ง */
+    background-attachment: fixed;
 }
 
 .chat-list-header {
@@ -481,6 +600,16 @@ body {
     margin: 0;
     flex-shrink: 0;
     gap: 15px;
+    position: sticky;
+    /* ทำให้ล็อกอยู่กับที่ */
+    top: 0;
+    /* ติดขอบบน */
+    z-index: 1000;
+    /* ให้อยู่เหนือรายการแชทที่เลื่อนผ่าน */
+    background-color: #ffffff;
+    /* ต้องใส่สีพื้นหลังเพื่อไม่ให้ข้อความด้านล่างทะลุขึ้นมา */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    /* เพิ่มเงาเล็กน้อยให้ดูมีมิติ */
 }
 
 #chatListHeader,
@@ -662,22 +791,50 @@ body {
 
 /* CHAT PANEL (ขวา - Active Chat) (ไม่มีการแก้ไขในส่วนนี้) */
 .input-area {
+    padding: 10px;
+    padding-bottom: env(safe-area-inset-bottom);
+    /* 🔑 รองรับรอยบาก iPhone */
+    background: white;
+    border-top: 1px solid #ddd;
     display: flex;
-    padding: 15px;
     gap: 10px;
-    margin-top: auto;
     flex-shrink: 0;
 }
 
 #chatInput {
-    flex-grow: 1;
-    padding: 10px;
-    border: 1px solid #ced4da;
+    flex: 1;
     border-radius: 20px;
-    resize: none;
-    min-height: 40px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    transition: all var(--transition-time);
+    border: 1px solid #ccc;
+    padding: 8px 15px;
+    font-size: 16px;
+    /* 🔑 ป้องกัน iOS Auto Zoom */
+}
+
+/* 9. UTILITIES */
+.message-time {
+    font-size: 10px;
+    opacity: 0.7;
+    margin: 0 5px;
+}
+
+.admin-container .message-time {
+    order: 1;
+}
+
+.user-container .message-time {
+    order: 2;
+}
+
+/* 10. HIDE SCROLLBARS */
+::-webkit-scrollbar {
+    width: 0;
+    background: transparent;
+}
+
+#chatList,
+#chatBox {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 #chatInput:focus {
@@ -711,50 +868,126 @@ body {
 /* ========================================================= */
 .message-container {
     display: flex;
-    margin: 0 0;
+    flex-direction: row;
+    /* แนวนอน */
     align-items: flex-end;
-    opacity: 1;
-    transform: translateY(0);
-    position: relative;
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
+    margin-bottom: 1px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
 
-    /* 🔑 [CRITICAL FIX] ป้องกันการเลือกข้อความสำหรับ Mobile/iOS */
-    -webkit-user-select: none !important;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+.message-container.show {
+    opacity: 1;
 }
 
 .message-bubble {
-    font-size: 15px;
-    padding: 8px 12px;
-    width: fit-content;
+    margin: 0;
+    /* มั่นใจว่าไม่มี margin ส่วนเกิน */
     border-radius: var(--border-radius-bubble);
-    max-width: 70%;
-    position: relative;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     line-height: 1.4;
+    font-size: 15px;
     word-wrap: break-word;
-    transition: box-shadow 0.2s;
+    white-space: pre-wrap;
+    /* 💡 แก้ไข: ใช้ Shadow ที่เบาลงเล็กน้อยสำหรับ Bubble */
+    display: block;
+    max-width: 100%;
+    /* 💡 เพิ่ม: Transition สำหรับเงาและ Transform */
+    transition: box-shadow var(--transition-time) ease-in-out, transform var(--transition-time) ease-out;
 
-    /* 🔑 [CRITICAL FIX] ป้องกันการเลือกข้อความสำหรับ Mobile/iOS */
-    -webkit-user-select: none !important;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+    pointer-events: auto !important;
+    /* บังคับให้รับแรงกด/คลิก */
+    /* ทำให้ Cursor เปลี่ยนเป็นรูปมือเมื่อชี้ (บนคอม) เพื่อทดสอบ */
+    cursor: pointer !important;
 
-    /* 🔑 [CRITICAL FIX สำหรับ iOS] */
+    /* ยืนยันตำแหน่งเพื่อให้ Layer ชัดเจน */
+    position: relative;
+    z-index: 10;
+    cursor: context-menu;
+    /* เปลี่ยนรูปเมาส์ให้รู้ว่าคลิกขวาได้ */
+
+
+    /* ป้องกันเมนูเลือกข้อความของ iOS */
     -webkit-touch-callout: none !important;
-    /* ปิดเมนูแว่นขยายและเมนู Copy ของ iOS */
     -webkit-user-select: none !important;
-    /* ปิดการเลือกข้อความ */
     user-select: none !important;
 
-    /* 🔑 เพิ่มบรรทัดนี้เพื่อลดความหน่วงเวลาสัมผัส */
+    /* ช่วยให้การแตะตอบสนองไวขึ้น */
     touch-action: manipulation;
 
-    /* 🔑 ปิด Highlight สีฟ้าเวลาแตะบน iOS */
-    -webkit-tap-highlight-color: transparent;
+    padding: 6px 12px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    /* เพิ่มเงานิดๆ ให้ดูมีมิติ */
+    transition: all 0.2s ease;
+}
+
+.user-bubble {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+/* Feedback เมื่อกดโดนบับเบิ้ล */
+.message-bubble:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+}
+
+/* Admin (Right) & User (Left) */
+.admin-container {
+    justify-content: flex-end;
+}
+
+.admin-container .message-bubble {
+    background-color: var(--admin-bubble-bg);
+    color: white;
+    order: 2;
+}
+
+
+.user-container .message-bubble {
+    background-color: var(--user-bubble-bg);
+    color: var(--text-color);
+}
+
+/* 6. BUBBLE GROUPING (การจัดรูปทรงบับเบิ้ล) */
+/* User Grouping */
+.user-container:has(+ .user-container) .message-bubble {
+    border-bottom-left-radius: var(--border-radius-group);
+}
+
+.user-container+.user-container:has(+ .user-container) .message-bubble {
+    border-radius: var(--border-radius-group) var(--border-radius-bubble) var(--border-radius-bubble) var(--border-radius-group);
+}
+
+.user-container+.user-container:not(:has(+ .user-container)) .message-bubble {
+    border-top-left-radius: var(--border-radius-group);
+}
+
+/* Admin Grouping */
+.admin-container:has(+ .admin-container) .message-bubble {
+    border-bottom-right-radius: var(--border-radius-group);
+}
+
+.admin-container+.admin-container:has(+ .admin-container) .message-bubble {
+    border-radius: var(--border-radius-bubble) var(--border-radius-group) var(--border-radius-group) var(--border-radius-bubble);
+}
+
+.admin-container+.admin-container:not(:has(+ .admin-container)) .message-bubble {
+    border-top-right-radius: var(--border-radius-group);
+}
+
+.admin-container {
+    justify-content: flex-end;
+}
+
+.admin-container .message-bubble {
+    background-color: var(--admin-bubble-bg);
+    color: white;
+}
+
+.user-container .message-bubble {
+    background-color: var(--user-bubble-bg);
+    color: var(--text-color);
 }
 
 .message-bubble:hover {
@@ -765,8 +998,9 @@ body {
 /* 🔑 [CHAT BUBBLE GROUPING] - USER (ชิดซ้าย) */
 /* ---------------------------------------------------- */
 .user-container {
-    position: relative;
     justify-content: flex-start;
+    flex-wrap: wrap;
+    /* รองรับชื่อผู้ส่งด้านบน */
 }
 
 .user-container .message-bubble {
@@ -924,36 +1158,41 @@ body {
 /* ========================================================= */
 
 .context-menu {
-    position: absolute;
-    top: 0px;
-    /* 🔑 [FIXED]: ปรับให้ลอยอยู่เหนือ Bubble (จากเดิม 5px) */
-    z-index: 100;
-    /* 🔑 [CONFIRMED]: z-index สูงพอ */
-    min-width: 150px;
-    background-color: white;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    border-radius: 11px;
-    overflow: hidden;
+    position: fixed;
+    /* 🔑 ต้องเป็น Fixed เท่านั้นบนมือถือ */
+    z-index: 999999;
+    min-width: 180px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.2s, visibility 0.2s;
-    left: 0;
-    right: auto;
-    pointer-events: none;
-    /* ปิดไว้เมื่อยังไม่แสดง */
-    position: fixed;
-    /* เปลี่ยนจาก absolute เป็น fixed เพื่อให้อยู่เหนือทุกอย่างจริงๆ */
-    /* กำหนดค่าเริ่มต้นให้มองไม่เห็น */
     pointer-events: none;
     will-change: transform, opacity;
+
 }
 
+/* 🔑 สำคัญ: ตรวจสอบว่า ID นี้ใน CSS ของคุณใช้ตัวไหน (contextMenu หรือ context-menu) */
+#contextMenu,
+.context-menu {
+    position: fixed !important;
+    display: none;
+    /* เริ่มต้นให้ซ่อน */
+    z-index: 999999 !important;
+    pointer-events: auto;
+}
+
+.context-menu.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.context-menu.active,
 .context-menu.show {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    /* 🔑 [CONFIRMED]: เปิดให้คลิกได้ */
-    transform: translateY(0);
 }
 
 .admin-container .context-menu {
@@ -963,14 +1202,48 @@ body {
 }
 
 .context-menu-item {
-    padding: 9px 15px;
-    cursor: pointer;
-    font-size: 0.9em;
-    color: var(--text-color);
-    transition: background-color 0.2s, color 0.2s, border-radius 0.2s;
+    padding: 16px 20px;
+    /* 🔑 ขยายพื้นที่กดให้แอดมินกดง่ายขึ้น */
+    font-size: 16px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    color: var(--text-color);
+}
+
+.context-menu-item:active {
+    background-color: #f5f5f5;
+}
+
+.context-menu-item.delete {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+/* 8. HEADER & INPUT AREA */
+.chat-header-bar,
+.chat-list-header {
+    height: 60px;
+    background: var(--primary-color);
+    color: white;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.context-menu-item:last-child {
+    border-bottom: none;
+}
+
+.context-menu-item:active {
+    background-color: #f5f5f5;
+}
+
+.context-menu-item.delete {
+    color: var(--danger-color);
+    font-weight: 600;
 }
 
 .context-menu-item:hover {
@@ -1033,143 +1306,114 @@ body {
 }
 
 
-/* 7. MEDIA QUERIES (บังคับ Full Screen 100% ตลอดเวลา) */
-
-@media (max-width: 900px) {
-
-    #listScreenContainer {
-        padding: 0 !important;
-        flex-direction: column;
-        display: none;
-    }
-
-    #listScreen,
-    #historyScreen {
-        display: flex;
-        flex-direction: column;
-        flex-grow: 1;
-        width: 100%;
-        height: 100%;
-        /* 🔴 [NEW FIX]: ยืนยันความสูงเต็มจอในโหมด Mobile */
-        overflow: hidden;
-        padding: 0 !important;
-    }
-
-    #chatListPanel,
-    #historyListPanel {
-        display: flex;
-        flex-grow: 1;
-        flex-direction: column;
-        width: 100%;
-        /* 🔴 [NEW FIX]: ทำให้ Panel ย่อยยืดเต็มที่ */
-        height: 100%;
-    }
-
-
-    #chatScreenContainer {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        padding: 0;
-    }
-
-    #backButton {
-        display: flex !important;
-    }
-
-    #chatBox {
-        margin: 10px;
-    }
-
-    .input-area {
-        padding: 10px;
-    }
-
-    .chat-header-bar {
-        padding: 10px 10px;
-    }
-
-    .chat-header-bar #chatTitle {
-        order: 1;
-        flex-grow: 1;
-    }
-
-    .chat-header-bar #chatButtonContainer {
-        order: 2;
-    }
-
-    .chat-header-bar #backButton {
-        order: 3;
-    }
+#listScreenContainer {
+    padding: 0 !important;
+    flex-direction: column;
+    display: none;
 }
 
-@media (min-width: 901px) {
-
-    #adminPanelContainer {
-        display: block;
-        max-width: 100vw;
-        margin: 0 !important;
-        box-shadow: none;
-        border-radius: 0;
-        height: 100vh;
-        position: relative;
-        width: 100vw;
-    }
-
-    #listScreenContainer {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: none;
-        flex-direction: column;
-        flex-basis: auto;
-        min-width: auto;
-        flex-shrink: 1;
-        background-color: var(--container-bg);
-        border-right: none;
-        padding: 0 !important;
-    }
-
-    #listScreen,
-    #historyScreen {
-        display: flex;
-        flex-direction: column;
-        flex-grow: 1;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        padding: 0 !important;
-    }
-
-    #chatListPanel,
-    #historyListPanel {
-        display: flex;
-        flex-grow: 1;
-        flex-direction: column;
-        width: 100%;
-        /* 🔴 [NEW FIX]: ทำให้ Panel ย่อยยืดเต็มที่ */
-        height: 100%;
-    }
-
-    #chatScreenContainer {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        display: none;
-        z-index: 30;
-    }
-
-    #backButton {
-        display: flex !important;
-    }
-
-    .message-bubble {
-        font-size: 15px;
-    }
+#listScreen,
+#historyScreen {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    /* 🔴 [NEW FIX]: ยืนยันความสูงเต็มจอในโหมด Mobile */
+    overflow: hidden;
+    padding: 0 !important;
 }
 
+#chatListPanel,
+#historyListPanel {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+    width: 100%;
+    /* 🔴 [NEW FIX]: ทำให้ Panel ย่อยยืดเต็มที่ */
+    height: 100%;
+}
+
+
+#chatScreenContainer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    z-index: 20;
+    background: var(--container-bg);
+}
+
+#backButton {
+    display: flex !important;
+}
+
+#chatBox {
+    margin: 10px;
+}
+
+
+.chat-header-bar #chatTitle {
+    order: 1;
+    flex-grow: 1;
+}
+
+.chat-header-bar #chatButtonContainer {
+    order: 2;
+}
+
+.chat-header-bar #backButton {
+    order: 3;
+}
+
+#listScreenContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    flex-basis: auto;
+    min-width: auto;
+    flex-shrink: 1;
+    background-color: var(--container-bg);
+    border-right: none;
+    padding: 0 !important;
+}
+
+#listScreen,
+#historyScreen {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+#chatListPanel,
+#historyListPanel {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+    width: 100%;
+    /* 🔴 [NEW FIX]: ทำให้ Panel ย่อยยืดเต็มที่ */
+    height: 100%;
+}
+
+#chatScreenContainer {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: none;
+    z-index: 30;
+}
+
+#backButton {
+    display: flex !important;
+}
 
 /* ---------------------------------------------------- */
 /* DELETE HISTORY BUTTON STYLES (ไม่มีการแก้ไขในส่วนนี้) */
@@ -1218,4 +1462,162 @@ body {
 #chatBox {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+/* 6. HIDE SCROLLBARS */
+#chatList::-webkit-scrollbar,
+#chatBox::-webkit-scrollbar {
+    display: none;
+    width: 0;
+}
+
+#chatList,
+#chatBox {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* 7. MEDIA QUERIES */
+@media (max-width: 900px) {
+    .message-bubble {
+        max-width: 85%;
+    }
+
+    .context-menu {
+        min-width: 180px;
+    }
+}
+
+#contextMenu {
+    background-color: white;
+    border: 1px solid #DEE2E6;
+    border-radius: 111px;
+    display: none;
+    pointer-events: auto;
+    overflow: hidden;
+    transition: opacity var(--transition-time);
+    background: white;
+    animation: fadeIn 0.15s ease-out;
+    transition: transform 0.1s ease;
+    transform-origin: top right;
+    /* ถ้าหันซ้าย ให้งอกจากขวามาซ้าย */
+    transition: opacity 0.2s ease;
+    position: fixed;
+    z-index: 99999;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 10px 20px -5px rgba(0, 0, 0, 0.15),
+        0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    transform: translateX(-100%);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s;
+    transform: translateX(-100%) scale(0.9);
+}
+
+#contextMenu.active {
+    opacity: 1;
+    transform: translateX(-100%) scale(1);
+    display: block !important;
+    pointer-events: auto !important;
+    /* ปลดล็อคจากที่ตั้งไว้ใน HTML */
+}
+
+#contextMenu div:hover {
+    background-color: #f5f5f5;
+}
+
+#contextMenu ul {
+    list-style: none;
+    margin: 0;
+    padding: 5px 0;
+}
+
+#contextMenu li {
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#contextMenu li:hover {
+    background-color: #f5f5f5;
+}
+
+#deleteOption {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 12px 18px;
+    /* เพิ่ม padding ให้ดูโปร่ง ไม่อึดอัด */
+    border-radius: 12px;
+    /* เปลี่ยนจาก 30px เป็น 12px จะดู Modern กว่าสำหรับเมนู */
+    color: #ff3b30;
+    font-weight: 600;
+    gap: 0;
+    /* ใช้ margin ที่ไอคอนแทนเพื่อคุมระยะได้แม่นกว่า */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* ใช้ curve การเคลื่อนไหวที่สมูทขึ้น */
+    background: transparent;
+
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 1000000 !important;
+    user-select: none;
+}
+
+#deleteOption:hover {
+    background-color: #ff2d55 !important;
+    /* แดงเข้มขึ้น */
+    transform: scale(1.05);
+    /* ปุ่มขยายใหญ่ขึ้นนิดนึง */
+    box-shadow: 0 6px 20px rgba(255, 59, 48, 0.4) !important;
+}
+
+#deleteOption:active {
+    transform: scale(0.95);
+    /* ตอนกดให้ปุ่มบุ๋มลง */
+}
+
+#deleteOption i {
+    font-size: 16px;
+    /* ปรับไอคอนให้เด่นขึ้นนิดนึง */
+    width: 20px;
+    /* ล็อกความกว้างไอคอนเพื่อให้ตัวหนังสือตรงกันเสมอ */
+    margin-right: 12px;
+    transition: transform 0.2s ease;
+}
+
+#deleteOption:hover i {
+    transform: rotate(-10deg);
+    /* ลูกเล่นไอคอนเอียงนิดๆ ตอนเอาเมาส์วาง */
+}
+
+/* 7. HIDE SCROLLBAR */
+::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}
+
+/* ป้องกันการเลื่อนที่ตัว Body ทั้งหน้า และไปเลื่อนเฉพาะในส่วนของรายการแทน */
+.chat-list-container,
+.chat-box-base {
+    overflow-y: auto;
+    /* ให้เลื่อนได้เฉพาะส่วนนี้ */
+    flex: 1;
+    /* ยืดหยุ่นตามพื้นที่ที่เหลือ */
+    -webkit-overflow-scrolling: touch;
+    /* ให้ iOS เลื่อนลื่นไหล */
+}
+
+/* หากแอปของคุณใช้ Flexbox ในหน้าแชท ให้ตรวจสอบส่วนนี้ */
+.chat-view-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    /* บังคับความสูงเท่าหน้าจอ */
+    overflow: hidden;
+    /* ป้องกันหน้าหลักขยับ */
 }

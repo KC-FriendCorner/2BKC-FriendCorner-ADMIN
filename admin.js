@@ -234,22 +234,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🚩 [NEW] ฟังก์ชันจัดการ Long Press
     function setupLongPressHandler(bubbleElement, chatId, messageId, messageSender) {
         let pressTimer = null;
-        const LONG_PRESS_DURATION = 500; // 500ms
+        let isMoving = false; // 🔑 เพิ่มตัวแปรเช็คการขยับนิ้ว
+        const LONG_PRESS_DURATION = 500;
 
         const startPress = (e) => {
-            // ต้องป้องกันการทำงานปกติของ contextmenu ในมือถือ
-            if (e.type === 'contextmenu') {
-                e.preventDefault();
-                showContextMenu(e, chatId, messageId, messageSender, bubbleElement);
-                return;
-            }
+            isMoving = false; // รีเซ็ตสถานะการขยับ
 
-            // ยกเลิกการกดค้างอื่น ๆ ก่อน
-            hideContextMenu();
+            // สำหรับ Desktop
+            if (e.type === 'mousedown' && e.button !== 0) return; // รับเฉพาะคลิกซ้าย
 
+            // เปลี่ยนตรง setTimeout ใน setupLongPressHandler
             pressTimer = setTimeout(() => {
-                // เมื่อถึงเวลา Long Press
-                showContextMenu(e, chatId, messageId, messageSender, bubbleElement);
+                if (!isMoving) {
+                    if (window.navigator.vibrate) window.navigator.vibrate(40);
+
+                    // 🚩 ส่ง e (Event จริง) เข้าไปแทน Object จำลอง
+                    showContextMenu(e, chatId, messageId, messageSender, bubbleElement);
+                }
             }, LONG_PRESS_DURATION);
         };
 
@@ -257,27 +258,42 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(pressTimer);
         };
 
-        // สำหรับ Desktop (Mouse Events)
-        bubbleElement.addEventListener('mousedown', startPress, false);
-        bubbleElement.addEventListener('mouseup', cancelPress, false);
-        bubbleElement.addEventListener('mouseleave', cancelPress, false);
+        // --- สำหรับ Desktop ---
+        bubbleElement.addEventListener('mousedown', startPress);
+        bubbleElement.addEventListener('mouseup', cancelPress);
+        bubbleElement.addEventListener('mouseleave', cancelPress);
+        bubbleElement.addEventListener('contextmenu', (e) => e.preventDefault()); // ปิดเมนูเดิมของ Browser
 
-        // สำหรับ Mobile (Touch Events)
+        // --- สำหรับ iOS / Android (Mobile) ---
         bubbleElement.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            isMoving = false;
+            // 🔑 ห้ามใช้ e.preventDefault() ตรงนี้ เพราะจะทำให้เลื่อนหน้าจอไม่ได้
 
-            // 🔑 [FIX C]: เก็บ Touch Event สำหรับใช้ใน showContextMenu 
-            // เพื่อให้ได้ตำแหน่งที่ถูกต้อง (ถ้า showContextMenu ใช้ coordinates)
-            const touchEvent = e;
+            // เก็บข้อมูล Touch แรกไว้ (iOS บางรุ่นจะล้างค่า event ทิ้งหลังจากจบฟังก์ชัน)
+            const touch = e.touches[0];
+            const fakeEvent = {
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                target: e.target,
+                preventDefault: () => { } // จำลองฟังก์ชันป้องกัน
+            };
 
             pressTimer = setTimeout(() => {
-                // ใช้ Touch Event ที่เก็บไว้
-                showContextMenu(touchEvent, chatId, messageId, messageSender, bubbleElement);
+                if (!isMoving) {
+                    // บล็อกเมนูระบบของ iOS ทันทีเมื่อทำงาน
+                    bubbleElement.style.webkitTouchCallout = 'none';
+                    showContextMenu(fakeEvent, chatId, messageId, messageSender, bubbleElement);
+                }
             }, LONG_PRESS_DURATION);
+        }, { passive: true }); // 🔑 ใช้ passive เพื่อให้ไหลลื่น
 
-            // ไม่ต้องเรียก startPress(e) ซ้ำ เพราะเราจัดการ Timer ตรงนี้
-        }, false);
+        bubbleElement.addEventListener('touchmove', () => {
+            isMoving = true; // ถ้านิ้วขยับ (เช่น จะเลื่อนจอ) ให้ยกเลิก Long Press
+            cancelPress();
+        }, { passive: true });
+
+        bubbleElement.addEventListener('touchend', cancelPress);
+        bubbleElement.addEventListener('touchcancel', cancelPress);
     }
 
 
@@ -310,81 +326,76 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ฟังก์ชันสำหรับแสดงเมนู (อัปเดต Signature เพื่อรับ bubbleElement)
-    function showContextMenu(e, chatId, messageId, messageSender, bubbleElement) {
-        // 🔴 [FIX: L50] ซ่อนเมนูที่เปิดอยู่ก่อนถูกจัดการใน touchstart/mousedown แล้ว 
-        // ถ้าคุณได้จัดการ hideContextMenu() ใน touchstart/mousedown แล้ว ให้ข้ามไป
-        // ถ้ายังไม่ได้จัดการ ให้เปิด hideContextMenu() ไว้
-        // hideContextMenu(); 
+    // ฟังก์ชันสำหรับแสดงเมนู (ฉบับแก้ไขให้รองรับ iOS และพิกัดที่แม่นยำ)
+    window.showContextMenu = function (xOrEvent, yOrChatId, chatIdOrMsg, messageIdOrSender, senderOrElem, element) {
+        const menu = document.getElementById('contextMenu');
+        if (!menu) return;
 
-        // เราจะอนุญาตให้ Admin ลบข้อความของตัวเองเท่านั้น
-        if (messageSender !== 'admin' || currentListType === 'history') {
-            return;
+        // --- จัดการพารามิเตอร์ (Logic เดิมของคุณที่แก้ไขแล้ว) ---
+        let posX, posY, chatId, messageId;
+        if (typeof xOrEvent === 'object' && xOrEvent.clientX !== undefined) {
+            posX = xOrEvent.clientX;
+            posY = xOrEvent.clientY;
+            chatId = yOrChatId;
+            messageId = chatIdOrMsg;
+        } else {
+            posX = xOrEvent;
+            posY = yOrChatId;
+            chatId = chatIdOrMsg;
+            messageId = messageIdOrSender;
         }
 
-        // 1. ป้องกันการแสดงผล Context Menu ดั้งเดิมของเบราว์เซอร์
-        e.preventDefault();
-        // 🔑 [NEW] หยุด Propagation เพื่อป้องกันปัญหา Event ที่ container
-        e.stopPropagation();
+        // --- แสดงเมนูและปลดล็อค Pointer ---
+        menu.style.display = 'block';
+        menu.style.pointerEvents = 'auto'; // ✅ ปลดล็อคผ่าน JS อีกชั้น
+        menu.classList.add('active');
 
-        // 2. ซ่อนเมนูที่เปิดอยู่ก่อน (ถ้ามี)
-        // 🔑 [แนะนำให้ลบ/คอมเมนต์ หากจัดการใน setupLongPressHandler แล้ว]
-        // hideContextMenu(); 
+        menu.style.left = posX + 'px';
+        menu.style.top = posY + 'px';
 
-        // 3. 🔑 [FIX]: ใช้ bubbleElement เป็นตัวอ้างอิงตำแหน่ง (ถ้ามีการส่งมา)
-        const referenceElement = bubbleElement || e.currentTarget.querySelector('.message-bubble');
+        // --- ผูก Event ปุ่มลบ ---
+        const deleteOption = document.getElementById('deleteOption');
+        if (deleteOption) {
+            // ลบ Listener เก่าป้องกันการซ้อนทับ
+            const newDeleteOption = deleteOption.cloneNode(true);
+            deleteOption.parentNode.replaceChild(newDeleteOption, deleteOption);
 
-        // ถ้าหา bubble ไม่เจอ (ไม่ควรเกิด) ให้ใช้ messageContainer ไปก่อน
-        if (!referenceElement) return;
+            newDeleteOption.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // ✅ หยุดไม่ให้ Event ไหลไปโดนฟังก์ชันปิดเมนู
 
-        // 4. บังคับให้ Bubble แม่มี position: relative
-        // **เนื่องจากเราจะใช้ position: absolute บนเมนู contextMenu จะลอยไปตาม Bubble นี้**
-        referenceElement.style.position = 'relative';
+                console.log("Delete button clicked for:", messageId); // Debug
 
-        // 🔑 [CRITICAL FIX FOR iOS]: บังคับ display เป็น inline-block เพื่อให้ position: relative ทำงานได้ดี
-        referenceElement.style.display = 'inline-block';
+                if (confirm("คุณต้องการยกเลิกการส่งข้อความนี้ใช่หรือไม่?")) {
+                    if (typeof window.deleteMessage === 'function') {
+                        window.deleteMessage(chatId, messageId);
+                    }
+                    hideMenu();
+                }
+            });
+        }
 
-        // 5. สร้าง Context Menu Element ใหม่
-        const contextMenu = document.createElement('div');
-        contextMenu.className = 'context-menu temp-context-menu';
-        contextMenu.setAttribute('data-message-id', messageId);
-        contextMenu.setAttribute('data-chat-id', chatId);
-        contextMenu.setAttribute('data-sender', messageSender); // ค่าจะเป็น 'admin' หรือ 'user'
+        // --- ฟังก์ชันปิดเมนู ---
+        const hideMenu = () => {
+            menu.style.display = 'none';
+            menu.classList.remove('active');
+            document.removeEventListener('mousedown', checkClickOutside);
+            document.removeEventListener('touchstart', checkClickOutside);
+        };
 
-        // 6. สร้างตัวเลือก 'ยกเลิกข้อความ'
-        const deleteOption = document.createElement('div');
-        deleteOption.className = 'context-menu-item delete';
-        deleteOption.innerHTML = `<i class="fas fa-trash-alt"></i> ยกเลิกข้อความ`;
-
-        deleteOption.onclick = (event) => {
-            event.stopPropagation();
-            hideContextMenu();
-
-            if (window.confirm('❗ยืนยันการยกเลิกข้อความนี้? ผู้ใช้จะเห็นเป็น "ข้อความถูกยกเลิกการส่ง"')) {
-                window.deleteMessage(chatId, messageId);
+        // ตรวจสอบว่าคลิกข้างนอกจริงๆ หรือไม่ก่อนจะปิด
+        const checkClickOutside = (e) => {
+            if (!menu.contains(e.target)) {
+                hideMenu();
             }
         };
 
-        contextMenu.appendChild(deleteOption);
-        contextMenu.onclick = (event) => event.stopPropagation(); // หยุดการ Propagation เมื่อคลิกบน Menu
-
-        // 7. เพิ่ม Context Menu เข้าไปเป็น Child ของ Bubble ข้อความ
-        referenceElement.appendChild(contextMenu);
-
-        // 8. เพิ่ม Event Listener เพื่อซ่อนเมนูเมื่อคลิกนอกพื้นที่หรือ Scroll
-        const chatBox = document.getElementById('chatBox');
-        if (chatBox) {
-            // ลบ Event Listener เดิมออกก่อนเพื่อป้องกันการซ้ำซ้อน
-            chatBox.removeEventListener('scroll', hideContextMenu);
-            chatBox.addEventListener('scroll', hideContextMenu);
-        }
-
-        // 9. แสดงเมนู
+        // รอเล็กน้อยก่อนเริ่มดักจับการปิด เพื่อไม่ให้ Event เดียวกันสั่งเปิดแล้วปิดทันที
         setTimeout(() => {
-            contextMenu.classList.add('show');
-            document.addEventListener('click', hideContextMenu, { once: true });
-            document.addEventListener('contextmenu', hideContextMenu, { once: true });
-        }, 10);
-    }
+            document.addEventListener('mousedown', checkClickOutside);
+            document.addEventListener('touchstart', checkClickOutside);
+        }, 100);
+    };
 
     // 🚩 [IMPORTANT]: ผูกฟังก์ชันเข้ากับ Global Scope เพื่อให้ HTML ใน appendMessage เรียกได้
     window.showContextMenu = showContextMenu;
@@ -397,26 +408,38 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const messageRef = database.ref(`${CHATS_PATH}/${chatId}/${MESSAGES_SUB_PATH}/${messageId}`);
-        const timestamp = Date.now(); // ใช้ Date.now() เป็นเวลาที่ลบ
+        // [Optional] ล็อกหน้าจอหรือแสดง Loading เพื่อป้องกันการกดซ้ำ
+        const deleteBtn = document.getElementById('deleteOption');
+        if (deleteBtn) deleteBtn.style.pointerEvents = 'none';
 
-        // 1. อัปเดต node ข้อความให้มี property 'deleted: true' และลบ 'text' ออก
+        const messageRef = database.ref(`${CHATS_PATH}/${chatId}/${MESSAGES_SUB_PATH}/${messageId}`);
+
+        // อัปเดตข้อมูล
         messageRef.update({
-            text: null,     // ลบข้อความจริงออกจากฐานข้อมูล
-            deleted: true,  // ตั้งค่าสถานะว่าถูกลบแล้ว
-            deletedAt: timestamp // บันทึกเวลาที่ลบ
+            text: null,
+            deleted: true,
+            deletedAt: firebase.database.ServerValue.TIMESTAMP // ✅ ใช้เวลาจาก Server
         })
             .then(() => {
-                // 2. เมื่อลบสำเร็จ, เรียกฟังก์ชันเพื่อค้นหาข้อความสุดท้ายที่ถูกต้อง
+                // เมื่อลบสำเร็จ, อัปเดต Last Message ในรายการแชท
                 return updateLastValidMessage(chatId);
             })
             .then(() => {
-                // 3. แจ้งเตือนความสำเร็จหลังจากอัปเดตทุกอย่างเรียบร้อยแล้ว
                 showTemporaryMessage("ยกเลิกการส่งข้อความสำเร็จ");
+                // ปิดเมนูหลังจากทำงานเสร็จ
+                const menu = document.getElementById('contextMenu');
+                if (menu) {
+                    menu.style.display = 'none';
+                    menu.classList.remove('show', 'active');
+                }
             })
             .catch(error => {
-                console.error("Error deleting message or updating chat node:", error);
+                console.error("Error deleting message:", error);
                 showTemporaryMessage("เกิดข้อผิดพลาดในการยกเลิกการส่งข้อความ", true);
+            })
+            .finally(() => {
+                // คืนค่าให้ปุ่มกดได้อีกครั้ง (ถ้าจำเป็น)
+                if (deleteBtn) deleteBtn.style.pointerEvents = 'auto';
             });
     };
 
@@ -431,73 +454,94 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateLastValidMessage(chatId) {
         const messagesRef = database.ref(`${CHATS_PATH}/${chatId}/${MESSAGES_SUB_PATH}`);
 
-        // ดึง 50 ข้อความล่าสุดมาตรวจสอบเพื่อหาข้อความสุดท้ายที่ยังไม่ถูกลบ
         return messagesRef
             .orderByKey()
-            .limitToLast(50) // ดึงมา 50 ข้อความล่าสุด (ปรับได้ตามต้องการ)
+            .limitToLast(50)
             .once('value')
             .then(snapshot => {
-                let lastValidMessageText = '[การสนทนาถูกปิด/ยุติ]'; // ข้อความตั้งต้นหากไม่พบข้อความที่ถูกต้อง
-                let lastValidTimestamp = 0;
+                let lastValidMessageText = '[การสนทนาถูกยกเลิก]';
+                let lastValidTimestamp = Date.now(); // ✅ ใช้เวลาปัจจุบันเป็น fallback เพื่อรักษาลำดับการจัดเรียง
 
-                // วนลูปตรวจสอบข้อความ
-                snapshot.forEach(child => {
-                    const msg = child.val();
+                if (snapshot.exists()) {
+                    // snapshot.forEach จะเรียงจาก Key เก่า -> ใหม่
+                    snapshot.forEach(child => {
+                        const msg = child.val();
+                        // 🔑 เช็คทั้ง deleted, เนื้อหา text, และสถานะ system (ถ้ามี)
+                        if (msg.deleted !== true && msg.text && msg.text.trim() !== '') {
+                            lastValidMessageText = msg.text;
+                            lastValidTimestamp = msg.timestamp || lastValidTimestamp;
+                        }
+                    });
+                }
 
-                    // 🔑 ถ้าข้อความยังไม่ถูกลบ (deleted ไม่ใช่ true หรือเป็น null/undefined) 
-                    // และมีข้อความจริง (text ไม่ใช่ค่าว่าง)
-                    if (msg.deleted !== true && msg.text && msg.text.trim() !== '') {
-                        // เนื่องจากเราเรียงตาม Push Key (ตามเวลา) ข้อความนี้จะเป็นข้อความสุดท้ายที่ถูกต้อง
-                        lastValidMessageText = msg.text;
-                        lastValidTimestamp = msg.timestamp || 0;
-                    }
-                });
-
-                // 🚨 อัปเดต Field lastMessage ใน Chat Node หลัก (/chats/{chatId})
+                // 🚨 อัปเดตกลับไปที่ Node หลัก
                 return database.ref(`${CHATS_PATH}/${chatId}`).update({
                     lastMessage: {
                         text: lastValidMessageText,
                         timestamp: lastValidTimestamp
                     }
                 });
+            })
+            .catch(err => {
+                console.error("Error in updateLastValidMessage:", err);
             });
     }
 
     // 🚩 ส่วนนี้ควรถูกประกาศใน Global Scope หรือภายใน document.addEventListener('DOMContentLoaded', ...)
 
     window.setupLongPressHandler = function (element, chatId, messageId, sender) {
-        // 💡 ฟังก์ชันนี้ต้องถูกประกาศเป็น window.functionName เพื่อให้เข้าถึงได้
         let pressTimer = null;
+        let isLongPress = false; // 🔑 เพิ่ม flag เพื่อเช็คสถานะ
 
         const startPress = (e) => {
-            // อนุญาตเฉพาะ Left-click หรือ Touchstart
-            if (e.button !== 0 && e.type !== 'touchstart') return;
+            // อนุญาตเฉพาะปุ่มซ้ายเมาส์ (0) หรือ Touch
+            if (e.type === 'mousedown' && e.button !== 0) return;
 
-            // ป้องกันการ Scroll เมื่อ Touch (สำคัญสำหรับ Mobile)
-            if (e.type === 'touchstart') e.stopPropagation();
+            isLongPress = false;
+
+            // ดึงพิกัดออกมาล่วงหน้า (เพราะใน setTimeout e อาจจะถูกเคลียร์ไปแล้วในบางเบราว์เซอร์)
+            const touch = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
+            const x = touch.clientX;
+            const y = touch.clientY;
 
             pressTimer = setTimeout(() => {
-                // 🔑 เรียกใช้ showContextMenu โดยส่ง element (bubble) เข้าไป
+                isLongPress = true; // ยืนยันว่าเป็นการกดค้างสำเร็จ
+
+                // 🔑 เรียกใช้ showContextMenu โดยส่งพิกัดที่เก็บไว้
+                // และส่งโครงสร้างเลียนแบบ Event เพื่อให้เข้ากับฟังก์ชันเดิมของคุณ
                 window.showContextMenu({
-                    clientX: e.clientX,
-                    clientY: e.clientY,
+                    clientX: x,
+                    clientY: y,
+                    touches: [{ clientX: x, clientY: y }], // เผื่อข้างในเช็ค touches
                     preventDefault: () => { }
                 }, chatId, messageId, sender, element);
-                clearTimeout(pressTimer);
-            }, 700); // 700ms คือระยะเวลา Long Press
 
+                // 🚩 สำหรับ iOS: สั่งสั่นเบาๆ เพื่อให้ผู้ใช้รู้ว่าเมนูมาแล้ว (ถ้าเครื่องรองรับ)
+                if (navigator.vibrate) navigator.vibrate(50);
+
+            }, 600); // 600ms กำลังดีสำหรับ iOS
         };
 
-        const endPress = () => {
+        const endPress = (e) => {
             clearTimeout(pressTimer);
+            // 🚩 ถ้าเป็น Long Press ไปแล้ว ต้องป้องกันไม่ให้เกิด Click Event ตามมา
+            // ซึ่งเป็นสาเหตุหลักที่ทำให้เมนูเปิดแล้ว "หายวับ" ทันทีที่ปล่อยนิ้ว
+            if (isLongPress && e.cancelable) {
+                e.preventDefault();
+            }
         };
 
-        // ผูก Event Listener เข้ากับ element (bubble)
+        // ป้องกันเมนูมาตรฐานของระบบ (แว่นขยาย/Copy)
+        element.style.webkitTouchCallout = 'none';
+        element.style.webkitUserSelect = 'none';
+
+        // ผูก Event
         element.addEventListener('mousedown', startPress);
-        element.addEventListener('touchstart', startPress);
+        element.addEventListener('touchstart', startPress, { passive: true });
+
         element.addEventListener('mouseup', endPress);
+        element.addEventListener('touchend', endPress, { passive: false }); // ต้องไม่ passive เพื่อใช้ preventDefault
         element.addEventListener('mouseleave', endPress);
-        element.addEventListener('touchend', endPress);
         element.addEventListener('touchcancel', endPress);
     };
 
@@ -1353,14 +1397,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 🔑 [NEW LONG PRESS LOGIC]: เพิ่ม Event Listener สำหรับ Context Menu (Delete Message)
         if (isAdmin && !isHistory && !isDeleted) {
-            // 1. เพิ่ม Event Listener สำหรับ Context Menu ปกติ (Right-click)
+            // ✅ จุดที่ 1: ผูกคลิกขวาสำหรับ PC
             bubble.addEventListener('contextmenu', (e) => {
-                // Note: window.showContextMenu ต้องถูกประกาศไว้ใน Global Scope
-                window.showContextMenu(e, chatId, messageId, message.sender, bubble);
+                e.preventDefault();
+                const x = e.clientX;
+                const y = e.clientY;
+                window.showContextMenu(x, y, chatId, messageId, message.sender, bubble);
             });
-            // 2. เพิ่ม Event Listener สำหรับ Long Press (Mobile/Touch)
-            // Note: window.setupLongPressHandler ต้องถูกประกาศไว้ใน Global Scope
-            window.setupLongPressHandler(bubble, chatId, messageId, message.sender);
+
+            // ✅ จุดที่ 2: ผูก Long Press สำหรับ Mobile
+            if (typeof window.setupLongPressHandler === 'function') {
+                window.setupLongPressHandler(bubble, chatId, messageId, message.sender);
+            }
         }
 
         // เวลาข้อความ
@@ -1868,5 +1916,13 @@ messaging.onMessage((payload) => {
     }
 });
 
-// เรียกใช้ฟังก์ชันหลัก
+window.formatTime = function (timestamp) {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
 initializeAdminSystem();
