@@ -1559,20 +1559,50 @@ document.addEventListener('DOMContentLoaded', () => {
     // === 8. INITIAL SETUP & DOM LISTENERS ===
     // =================================================================
 
-    // Auto-resize textarea
+    // Auto-resize textarea & Messaging Logic
     const chatInput = document.getElementById('chatInput');
+    const sendButton = document.getElementById('sendButton');
+
     if (chatInput) {
-        chatInput.addEventListener('input', () => {
+        // 1. ฟังก์ชันคำนวณความสูงอัตโนมัติ
+        const adjustHeight = () => {
             chatInput.style.height = 'auto';
+            // กำหนดความสูงตามเนื้อหาจริง แต่ไม่เกินที่ตั้งไว้ใน CSS (max-height)
             chatInput.style.height = (chatInput.scrollHeight) + 'px';
-        });
-        // Event Listener สำหรับส่งข้อความ (Enter Key)
-        chatInput.addEventListener('keypress', function (e) {
+        };
+
+        chatInput.addEventListener('input', adjustHeight);
+
+        // 2. Event Listener สำหรับส่งข้อความ (Enter Key)
+        chatInput.addEventListener('keydown', function (e) {
+            // ใช้ keydown จะเสถียรกว่า keypress ในเบราว์เซอร์สมัยใหม่
             if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+                e.preventDefault(); // ป้องกันการขึ้นบรรทัดใหม่
+                handleSendMessage();
             }
         });
+
+        // 3. ผูกฟังก์ชันกับปุ่มส่ง (ถ้ามี)
+        if (sendButton) {
+            sendButton.addEventListener('click', handleSendMessage);
+        }
+    }
+
+    // ฟังก์ชันรวมศูนย์สำหรับการส่งข้อความ
+    function handleSendMessage() {
+        const message = chatInput.value.trim();
+        if (message !== "") {
+            // เรียกใช้ฟังก์ชัน sendMessage เดิมของคุณ
+            if (typeof sendMessage === 'function') {
+                sendMessage();
+
+                // 🚩 หัวใจสำคัญ: รีเซ็ตความสูงกลับมาเป็นบรรทัดเดียวหลังจากส่ง
+                setTimeout(() => {
+                    chatInput.value = '';
+                    chatInput.style.height = 'auto';
+                }, 10);
+            }
+        }
     }
 
     // ผูก Event Listener ของปุ่ม Login
