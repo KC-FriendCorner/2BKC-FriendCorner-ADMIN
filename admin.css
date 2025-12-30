@@ -49,14 +49,9 @@ body {
     padding: 0;
     background-color: var(--background-color);
     font-family: 'Prompt', sans-serif;
-    overflow: hidden;
-    /* บังคับให้ Scroll เฉพาะในจุดที่กำหนด */
-
     overflow-x: hidden;
-    /* กันจอกระตุกซ้ายขวา */
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
-    /* ให้การไถหน้าจอบน iOS ลื่นไหล */
 }
 
 /* 1. LAYOUT & CONTAINER (Full Viewport) */
@@ -472,17 +467,24 @@ body {
 
 
 #chatScreenContainer {
-    position: absolute;
+    /* จะถูกเปลี่ยนเป็น flex ใน JS */
+    flex-direction: column;
+    height: 100vh;
+    /* สูงเท่าจอภาพพอดี */
+    width: 100%;
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    background-color: #f5f7fb;
+    overflow: hidden;
+    /* ห้ามตัวแม่เลื่อนเอง */
+    z-index: 10000;
+
     display: none;
-    flex-direction: column;
-    background-color: var(--container-bg);
+    height: -webkit-fill-available;
+    /* สำหรับ iOS Safari */
     padding: 0;
-    box-sizing: border-box;
-    z-index: 20;
+    background: var(--container-bg);
 }
 
 #fullChatView {
@@ -571,8 +573,6 @@ body {
 
 #chatBox {
     flex-grow: 1;
-    overflow-y: auto;
-    background: #f0f0f0;
     border: none;
     border-radius: 11px;
     padding: 10px 15px;
@@ -582,13 +582,10 @@ body {
     margin: 15px;
     position: relative;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
     background-image: url('bg.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-
-    /* 🚩 คำสั่งล็อกรูปให้นิ่ง */
     background-attachment: fixed;
 }
 
@@ -1334,16 +1331,6 @@ body {
     height: 100%;
 }
 
-
-#chatScreenContainer {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    padding: 0;
-    z-index: 20;
-    background: var(--container-bg);
-}
-
 #backButton {
     display: flex !important;
 }
@@ -1367,11 +1354,9 @@ body {
 }
 
 #listScreenContainer {
-    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
     display: none;
     flex-direction: column;
     flex-basis: auto;
@@ -1380,6 +1365,15 @@ body {
     background-color: var(--container-bg);
     border-right: none;
     padding: 0 !important;
+
+    height: 100vh;
+    /* สูงเท่าจอภาพพอดี */
+    position: fixed;
+    overflow: hidden;
+    /* ห้ามตัวแม่เลื่อนเอง */
+    z-index: 10000;
+    height: -webkit-fill-available;
+    /* สำหรับ iOS Safari */
 }
 
 #listScreen,
@@ -1401,14 +1395,6 @@ body {
     width: 100%;
     /* 🔴 [NEW FIX]: ทำให้ Panel ย่อยยืดเต็มที่ */
     height: 100%;
-}
-
-#chatScreenContainer {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    display: none;
-    z-index: 30;
 }
 
 #backButton {
