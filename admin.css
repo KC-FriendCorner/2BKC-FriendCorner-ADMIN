@@ -62,7 +62,6 @@ body {
     height: 100vh;
     background-color: var(--container-bg);
     /* 🔑 [FIX 2/3]: ลบ overflow: hidden; ออกจาก body หรือเปลี่ยนเป็น auto */
-    /* เพื่อให้ส่วน listScreenContainer มีความสูงเต็ม 100% และสามารถจัดการ scroll ภายในได้ */
     overflow: hidden;
     /* คงไว้ที่ hidden เพื่อบังคับ Scroll ภายใน #chatList (ในกรณีที่หน้าจอหลักไม่มีอะไรล้น) */
 }
@@ -428,10 +427,6 @@ body {
     padding: 10px;
 }
 
-#listScreenContainer {
-    display: none !important;
-}
-
 #listScreen,
 #historyScreen {
     display: flex;
@@ -578,7 +573,7 @@ body {
     padding: 10px 15px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 1px;
     margin: 15px;
     position: relative;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -1302,13 +1297,6 @@ body {
     }
 }
 
-
-#listScreenContainer {
-    padding: 0 !important;
-    flex-direction: column;
-    display: none;
-}
-
 #listScreen,
 #historyScreen {
     display: flex;
@@ -1353,7 +1341,7 @@ body {
     order: 3;
 }
 
-#listScreenContainer {
+#listScreen {
     top: 0;
     left: 0;
     width: 100%;
@@ -1365,15 +1353,34 @@ body {
     background-color: var(--container-bg);
     border-right: none;
     padding: 0 !important;
-
+    overflow: hidden;
     height: 100vh;
-    /* สูงเท่าจอภาพพอดี */
     position: fixed;
     overflow: hidden;
-    /* ห้ามตัวแม่เลื่อนเอง */
     z-index: 10000;
     height: -webkit-fill-available;
-    /* สำหรับ iOS Safari */
+    background: var(--container-bg);
+}
+
+#historyScreen {
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: none;
+    flex-direction: column;
+    flex-basis: auto;
+    min-width: auto;
+    flex-shrink: 1;
+    background-color: var(--container-bg);
+    border-right: none;
+    padding: 0 !important;
+    overflow: hidden;
+    height: 100vh;
+    position: fixed;
+    overflow: hidden;
+    z-index: 10000;
+    height: -webkit-fill-available;
+    background: var(--container-bg);
 }
 
 #listScreen,
